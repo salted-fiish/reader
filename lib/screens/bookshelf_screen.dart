@@ -4,6 +4,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 import '../providers/theme_provider.dart';
 import 'pdf_viewer_screen.dart';
+import 'txt_viewer_screen.dart';
+import 'epub_viewer_screen.dart';
+
+enum BookType {
+  pdf,
+  txt,
+  epub,
+  unknown
+}
 
 class BookshelfScreen extends StatefulWidget {
   const BookshelfScreen({super.key});
@@ -13,7 +22,7 @@ class BookshelfScreen extends StatefulWidget {
 }
 
 class _BookshelfScreenState extends State<BookshelfScreen> {
-  List<String> _pdfPaths = [];
+  List<String> _bookPaths = [];
   bool _isGridView = false;  // 控制显示模式，false为列表，true为网格
 
   @override
@@ -25,31 +34,84 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
   Future<void> _loadSavedPDFs() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _pdfPaths = prefs.getStringList('pdf_paths') ?? [];
+      _bookPaths = prefs.getStringList('pdf_paths') ?? [];
     });
   }
 
   Future<void> _savePDFPaths() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('pdf_paths', _pdfPaths);
+    await prefs.setStringList('pdf_paths', _bookPaths);
   }
 
-  Future<void> _pickPDF() async {
+  BookType _getBookType(String path) {
+    final extension = path.split('.').last.toLowerCase();
+    switch (extension) {
+      case 'pdf':
+        return BookType.pdf;
+      case 'txt':
+        return BookType.txt;
+      case 'epub':
+        return BookType.epub;
+      default:
+        return BookType.unknown;
+    }
+  }
+
+  Future<void> _pickBook() async {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['pdf'],
+        allowedExtensions: ['pdf', 'txt', 'epub'],
       );
 
       if (result != null && result.files.single.path != null) {
         setState(() {
-          _pdfPaths.add(result.files.single.path!);
+          _bookPaths.add(result.files.single.path!);
         });
         await _savePDFPaths();
       }
     } catch (e) {
       debugPrint('Error picking file: $e');
     }
+  }
+
+  Icon _getFileIcon(BookType type) {
+    switch (type) {
+      case BookType.pdf:
+        return const Icon(Icons.picture_as_pdf);
+      case BookType.txt:
+        return const Icon(Icons.text_snippet);
+      case BookType.epub:
+        return const Icon(Icons.book);
+      default:
+        return const Icon(Icons.insert_drive_file);
+    }
+  }
+
+  void _openBook(BuildContext context, String path) {
+    final bookType = _getBookType(path);
+    Widget viewer;
+    
+    switch (bookType) {
+      case BookType.pdf:
+        viewer = PDFViewerScreen(pdfPath: path);
+        break;
+      case BookType.txt:
+        viewer = TxtViewerScreen(txtPath: path);
+        break;
+      case BookType.epub:
+        viewer = EpubViewerScreen(epubPath: path);
+        break;
+      default:
+        viewer = const Center(child: Text('不支持的文件格式'));
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => viewer,
+      ),
+    );
   }
 
   @override
@@ -115,7 +177,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
           ],
         ),
       ),
-      body: _pdfPaths.isEmpty
+      body: _bookPaths.isEmpty
           ? const Center(child: Text('书架是空的\n点击右下角添加PDF文件'))
           : _isGridView
               ? GridView.builder(
@@ -126,26 +188,20 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
                     crossAxisSpacing: 16,  // 横向间距
                     mainAxisSpacing: 16,  // 纵向间距
                   ),
-                  itemCount: _pdfPaths.length,
+                  itemCount: _bookPaths.length,
                   itemBuilder: (context, index) {
-                    final file = File(_pdfPaths[index]);
+                    final file = File(_bookPaths[index]);
                     final fileName = file.path.split('/').last;
+                    final bookType = _getBookType(file.path);
                     return Card(
                       elevation: 2,
                       child: InkWell(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => PDFViewerScreen(pdfPath: _pdfPaths[index]),
-                            ),
-                          );
-                        },
+                        onTap: () => _openBook(context, _bookPaths[index]),
                         onLongPress: () => _showDeleteDialog(context, index, fileName),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.picture_as_pdf, size: 48),
+                            _getFileIcon(bookType),
                             const SizedBox(height: 8),
                             Padding(
                               padding: const EdgeInsets.all(8.0),
@@ -163,27 +219,21 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
                   },
                 )
               : ListView.builder(
-                  itemCount: _pdfPaths.length,
+                  itemCount: _bookPaths.length,
                   itemBuilder: (context, index) {
-                    final file = File(_pdfPaths[index]);
+                    final file = File(_bookPaths[index]);
                     final fileName = file.path.split('/').last;
+                    final bookType = _getBookType(file.path);
                     return ListTile(
-                      leading: const Icon(Icons.picture_as_pdf),
+                      leading: _getFileIcon(bookType),
                       title: Text(fileName),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => PDFViewerScreen(pdfPath: _pdfPaths[index]),
-                          ),
-                        );
-                      },
+                      onTap: () => _openBook(context, _bookPaths[index]),
                       onLongPress: () => _showDeleteDialog(context, index, fileName),
                     );
                   },
                 ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _pickPDF,
+        onPressed: _pickBook,
         child: const Icon(Icons.add),
       ),
     );
@@ -210,7 +260,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
 
     if (delete == true) {
       setState(() {
-        _pdfPaths.removeAt(index);
+        _bookPaths.removeAt(index);
       });
       await _savePDFPaths();
     }

@@ -30,6 +30,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  archive: ^3.4.10
+  path: ^1.8.3
+  flutter_widget_from_html: ^0.15.3
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -43,7 +46,9 @@ dependencies:
   path_provider: ^2.1.2 # 路径提供
   build_runner: ^2.4.14
   hive_generator: ^2.0.1
+  epub_view: ^3.2.0
   syncfusion_flutter_pdfviewer: ^24.1.41  # 替换为最新版本，如 ^24.1.41
+  
 
 dev_dependencies:
   flutter_test:
