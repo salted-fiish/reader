@@ -6,6 +6,7 @@ import '../providers/theme_provider.dart';
 import 'pdf_viewer_screen.dart';
 import 'txt_viewer_screen.dart';
 import 'epub_viewer_screen.dart';
+import '../widgets/book_card.dart';
 
 enum BookType {
   pdf,
@@ -23,7 +24,12 @@ class BookshelfScreen extends StatefulWidget {
 
 class _BookshelfScreenState extends State<BookshelfScreen> {
   List<String> _bookPaths = [];
-  bool _isGridView = false;  // 控制显示模式，false为列表，true为网格
+  bool _isGridView = false;
+  bool _showList = true;  // 控制列表显示/隐藏
+  final PageController _pageController = PageController(
+    viewportFraction: 0.8,  // 让当前页面占据80%的宽度
+    initialPage: 0,
+  );
 
   @override
   void initState() {
@@ -114,9 +120,27 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
     );
   }
 
+  // 添加一个方法来获取最近的3本书
+  List<String> _getRecentBooks() {
+    return _bookPaths.take(3).toList();  // 只取前3本书
+  }
+
+  void _handleVerticalDrag(DragUpdateDetails details) {
+    if (details.delta.dy > 3) {  // 向下滑动
+      setState(() {
+        _showList = false;
+      });
+    } else if (details.delta.dy < -3) {  // 向上滑动
+      setState(() {
+        _showList = true;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeProvider = ThemeProvider.of(context);
+    final recentBooks = _getRecentBooks();  // 获取最近的3本书
     
     return Scaffold(
       appBar: AppBar(
@@ -179,63 +203,178 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
       ),
       body: _bookPaths.isEmpty
           ? const Center(child: Text('书架是空的\n点击右下角添加PDF文件'))
-          : _isGridView
-              ? GridView.builder(
-                  padding: const EdgeInsets.all(16),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,  // 每行显示2个
-                    childAspectRatio: 0.75,  // 控制item的宽高比
-                    crossAxisSpacing: 16,  // 横向间距
-                    mainAxisSpacing: 16,  // 纵向间距
-                  ),
-                  itemCount: _bookPaths.length,
-                  itemBuilder: (context, index) {
-                    final file = File(_bookPaths[index]);
-                    final fileName = file.path.split('/').last;
-                    final bookType = _getBookType(file.path);
-                    return Card(
-                      elevation: 2,
-                      child: InkWell(
-                        onTap: () => _openBook(context, _bookPaths[index]),
-                        onLongPress: () => _showDeleteDialog(context, index, fileName),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            _getFileIcon(bookType),
-                            const SizedBox(height: 8),
-                            Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Text(
-                                fileName,
-                                textAlign: TextAlign.center,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
+          : GestureDetector(
+              onVerticalDragUpdate: _handleVerticalDrag,
+              child: Column(
+                children: [
+                  // 最近阅读的书籍
+                  Expanded(
+                    flex: 2,
+                    child: PageView.builder(
+                      controller: _pageController,
+                      itemCount: recentBooks.length,  // 使用最近的3本书
+                      itemBuilder: (context, index) {
+                        final file = File(recentBooks[index]);
+                        final fileName = file.path.split('/').last;
+                        
+                        return AnimatedBuilder(
+                          animation: _pageController,
+                          builder: (context, child) {
+                            double page = _pageController.hasClients 
+                                ? _pageController.page ?? 0 
+                                : 0;
+                            double distance = (page - index).abs();
+                            double opacity = 1.0 - (distance * 0.3).clamp(0.0, 0.3);
+                            
+                            // 计算颜色插值
+                            final selectedColor = const Color.fromARGB(255, 73, 73, 73);
+                            final unselectedColor = const Color.fromARGB(255, 114, 105, 105);
+                            final color = Color.lerp(
+                              unselectedColor,
+                              selectedColor,
+                              (1 - distance).clamp(0.0, 1.0),
+                            );
+                            
+                            return Center(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 10),
+                                child: Opacity(
+                                  opacity: opacity,
+                                  child: BookCard(
+                                    title: fileName,
+                                    coverPath: "",
+                                    color: color,  // 传递插值后的颜色
+                                    onTap: () => _openBook(context, recentBooks[index]),
+                                  ),
+                                ),
                               ),
-                            ),
-                          ],
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                  // 页面指示器
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    height: _showList ? 40 : 0,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(
+                          recentBooks.length,  // 使用最近的3本书
+                          (index) => AnimatedBuilder(
+                            animation: _pageController,
+                            builder: (context, child) {
+                              double page = _pageController.hasClients 
+                                  ? _pageController.page ?? 0 
+                                  : 0;
+                              double distance = (page - index).abs();
+                              double size = 1.0 - (distance * 0.3).clamp(0.0, 0.3);
+                              
+                              return Container(
+                                margin: const EdgeInsets.symmetric(horizontal: 4),
+                                height: 8,
+                                width: 8 + (16 * size),
+                                decoration: BoxDecoration(
+                                  color: distance < 0.5 
+                                      ? Theme.of(context).colorScheme.primary 
+                                      : Colors.grey,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                              );
+                            },
+                          ),
                         ),
                       ),
-                    );
-                  },
-                )
-              : ListView.builder(
-                  itemCount: _bookPaths.length,
-                  itemBuilder: (context, index) {
-                    final file = File(_bookPaths[index]);
-                    final fileName = file.path.split('/').last;
-                    final bookType = _getBookType(file.path);
-                    return ListTile(
-                      leading: _getFileIcon(bookType),
-                      title: Text(fileName),
-                      onTap: () => _openBook(context, _bookPaths[index]),
-                      onLongPress: () => _showDeleteDialog(context, index, fileName),
-                    );
-                  },
-                ),
+                    ),
+                  ),
+                  // 书籍列表
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    height: _showList ? MediaQuery.of(context).size.height * 0.3 : 0,
+                    child: _isGridView ? _buildGridView() : _buildListView(),
+                  ),
+                ],
+              ),
+            ),
       floatingActionButton: FloatingActionButton(
         onPressed: _pickBook,
         child: const Icon(Icons.add),
       ),
+    );
+  }
+
+  Widget _buildGridView() {
+    return GridView.builder(
+      padding: const EdgeInsets.all(16),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 0.75,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+      ),
+      itemCount: _bookPaths.length,
+      itemBuilder: (context, index) {
+        final file = File(_bookPaths[index]);
+        final fileName = file.path.split('/').last;
+        // final bookType = _getBookType(file.path);
+        
+        return BookCard(
+          title: fileName,
+          coverPath: "assets/covers/default_cover.jpg",
+          onTap: () => _openBook(context, _bookPaths[index]),
+        );
+      },
+    );
+  }
+
+  Widget _buildListView() {
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      itemCount: _bookPaths.length,
+      itemBuilder: (context, index) {
+        final file = File(_bookPaths[index]);
+        final fileName = file.path.split('/').last;
+        final bookType = _getBookType(file.path);
+        return Container(
+          height: 64,
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          decoration: BoxDecoration(
+            color: const Color.fromARGB(255, 117, 117, 117),  // 使用相同的未选中颜色
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: () => _openBook(context, _bookPaths[index]),
+              onLongPress: () => _showDeleteDialog(context, index, fileName),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Row(
+                  children: [
+                    _getFileIcon(bookType),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        fileName,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.white,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -264,5 +403,11 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
       });
       await _savePDFPaths();
     }
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 } 
