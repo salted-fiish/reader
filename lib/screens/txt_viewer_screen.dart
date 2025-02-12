@@ -3,8 +3,13 @@ import 'dart:io';
 
 class TxtViewerScreen extends StatefulWidget {
   final String txtPath;
+  final Function(double) onProgressChanged;
 
-  const TxtViewerScreen({super.key, required this.txtPath});
+  const TxtViewerScreen({
+    super.key,
+    required this.txtPath,
+    required this.onProgressChanged,
+  });
 
   @override
   State<TxtViewerScreen> createState() => _TxtViewerScreenState();
@@ -18,10 +23,15 @@ class _TxtViewerScreenState extends State<TxtViewerScreen> {
   final PageController _pageController = PageController();
   List<String> _pages = [];
 
+  late ScrollController _scrollController;
+  double _progress = 0.0;
+
   @override
   void initState() {
     super.initState();
     _loadContent();
+    _scrollController = ScrollController()
+      ..addListener(_updateProgress);
   }
 
   void _splitIntoPages(String content) {
@@ -46,6 +56,13 @@ class _TxtViewerScreenState extends State<TxtViewerScreen> {
     }
   }
 
+  void _updateProgress() {
+    if (_scrollController.position.maxScrollExtent > 0) {
+      final progress = _scrollController.offset / _scrollController.position.maxScrollExtent;
+      widget.onProgressChanged(progress.clamp(0.0, 1.0));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -57,6 +74,10 @@ class _TxtViewerScreenState extends State<TxtViewerScreen> {
                 ? PageView.builder(
                     controller: _pageController,
                     itemCount: _pages.length,
+                    onPageChanged: (index) {
+                      final progress = index / (_pages.length - 1);
+                      widget.onProgressChanged(progress);
+                    },
                     itemBuilder: (context, index) {
                       return Padding(
                         padding: const EdgeInsets.all(16.0),
@@ -68,6 +89,7 @@ class _TxtViewerScreenState extends State<TxtViewerScreen> {
                     },
                   )
                 : SingleChildScrollView(
+                    controller: _scrollController,
                     padding: const EdgeInsets.all(16.0),
                     child: Text(
                       _content,
@@ -159,6 +181,7 @@ class _TxtViewerScreenState extends State<TxtViewerScreen> {
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _pageController.dispose();
     super.dispose();
   }

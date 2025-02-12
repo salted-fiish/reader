@@ -30,11 +30,13 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
     viewportFraction: 0.8,  // 让当前页面占据80%的宽度
     initialPage: 0,
   );
+  Map<String, double> _bookProgress = {};  // 存储每本书的进度
 
   @override
   void initState() {
     super.initState();
     _loadSavedPDFs();
+    _loadBookProgress();
   }
 
   Future<void> _loadSavedPDFs() async {
@@ -47,6 +49,25 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
   Future<void> _savePDFPaths() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('pdf_paths', _bookPaths);
+  }
+
+  Future<void> _loadBookProgress() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      for (var path in _bookPaths) {
+        _bookProgress[path] = prefs.getDouble('progress_$path') ?? 0.0;
+      }
+    });
+  }
+
+  Future<void> _saveBookProgress(String path, double progress) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('progress_$path', progress);
+    if (mounted) {  // 添加mounted检查
+      setState(() {
+        _bookProgress[path] = progress;
+      });
+    }
   }
 
   BookType _getBookType(String path) {
@@ -71,10 +92,13 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
       );
 
       if (result != null && result.files.single.path != null) {
+        final path = result.files.single.path!;
         setState(() {
-          _bookPaths.add(result.files.single.path!);
+          _bookPaths.add(path);
+          _bookProgress[path] = 0.0;  // 初始化进度
         });
         await _savePDFPaths();
+        await _saveBookProgress(path, 0.0);  // 保存初始进度
       }
     } catch (e) {
       debugPrint('Error picking file: $e');
@@ -94,25 +118,40 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
     }
   }
 
-  void _openBook(BuildContext context, String path) {
+  void _openBook(BuildContext context, String path) async {
     final bookType = _getBookType(path);
     Widget viewer;
     
     switch (bookType) {
       case BookType.pdf:
-        viewer = PDFViewerScreen(pdfPath: path);
+        viewer = PDFViewerScreen(
+          pdfPath: path,
+          onProgressChanged: (progress) async {
+            await _saveBookProgress(path, progress);
+          },
+        );
         break;
       case BookType.txt:
-        viewer = TxtViewerScreen(txtPath: path);
+        viewer = TxtViewerScreen(
+          txtPath: path,
+          onProgressChanged: (progress) async {
+            await _saveBookProgress(path, progress);
+          },
+        );
         break;
       case BookType.epub:
-        viewer = EpubViewerScreen(epubPath: path);
+        viewer = EpubViewerScreen(
+          epubPath: path,
+          onProgressChanged: (progress) async {
+            await _saveBookProgress(path, progress);
+          },
+        );
         break;
       default:
         viewer = const Center(child: Text('不支持的文件格式'));
     }
 
-    Navigator.push(
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => viewer,
@@ -243,7 +282,8 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
                                   child: BookCard(
                                     title: fileName,
                                     coverPath: "",
-                                    color: color,  // 传递插值后的颜色
+                                    color: color,
+                                    progress: _bookProgress[recentBooks[index]] ?? 0.0,
                                     onTap: () => _openBook(context, recentBooks[index]),
                                   ),
                                 ),
@@ -324,6 +364,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
         return BookCard(
           title: fileName,
           coverPath: "assets/covers/default_cover.jpg",
+          progress: _bookProgress[_bookPaths[index]] ?? 0.0,
           onTap: () => _openBook(context, _bookPaths[index]),
         );
       },

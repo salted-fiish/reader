@@ -5,6 +5,7 @@ class BookCard extends StatefulWidget {
   final String coverPath;
   final VoidCallback onTap;
   final Color? color;
+  final double progress;
 
   const BookCard({
     super.key,
@@ -12,6 +13,7 @@ class BookCard extends StatefulWidget {
     required this.coverPath,
     required this.onTap,
     this.color,
+    this.progress = 0.0,
   });
 
   @override
@@ -70,20 +72,45 @@ class _BookCardState extends State<BookCard> with SingleTickerProviderStateMixin
                       // 书籍信息
                       Padding(
                         padding: const EdgeInsets.all(16.0),
-                        child: Container(
-                          alignment: Alignment.center,
-                          margin: const EdgeInsets.only(top: 40),  // 向下移动文本
-                          child: Text(
-                            widget.title,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              fontFamily: 'Times New Roman',
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              alignment: Alignment.center,
+                              margin: const EdgeInsets.only(top: 40),  // 向下移动文本
+                              child: Text(
+                                widget.title,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  fontFamily: 'Times New Roman',
+                                ),
+                                textAlign: TextAlign.center,  // 文本居中
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                            textAlign: TextAlign.center,  // 文本居中
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                            const SizedBox(height: 16),
+                            // 进度条
+                            Container(
+                              height: 4,
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                              child: FractionallySizedBox(
+                                alignment: Alignment.centerLeft,
+                                widthFactor: widget.progress,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.8),
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
