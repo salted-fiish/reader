@@ -33,13 +33,9 @@ dependencies:
   archive: ^3.4.10
   path: ^1.8.3
   flutter_widget_from_html: ^0.15.3
-
-  # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
-  cupertino_icons: ^1.0.8
-  flutter_pdfview: ^1.2.2 # 适用于 Android & iOS 的 PDF 渲染插件
-  file_picker: ^6.0.0     # 选择本地 PDF 文件
-  shared_preferences: ^2.2.2 # 存储用户阅读进度
+  http: ^1.1.0
+  file_picker: ^6.0.0
+  shared_preferences: ^2.2.2
   provider: ^6.1.2        # 状态管理
   hive: ^2.2.3 # 本地存储
   hive_flutter: ^1.1.0 # 本地存储
@@ -48,6 +44,9 @@ dependencies:
   hive_generator: ^2.0.1
   epub_view: ^3.2.0
   syncfusion_flutter_pdfviewer: ^24.1.41  # 替换为最新版本，如 ^24.1.41
+  graphview: ^1.2.0
+  syncfusion_flutter_pdf: ^24.1.41
+  flutter_pdf_text: ^0.8.1
   
 
 dev_dependencies:

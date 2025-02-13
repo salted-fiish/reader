@@ -33,7 +33,7 @@ class _EpubViewerScreenState extends State<EpubViewerScreen> {
     Future<EpubBook> document = EpubDocument.openFile(File(widget.epubPath));
 
     setState(() {
-      _epubController = EpubController(document: document);
+      _epubController = EpubController(document: Future.value(document));
       _isLoading = false;
     });
   }
@@ -44,7 +44,7 @@ class _EpubViewerScreenState extends State<EpubViewerScreen> {
     try {
       final location = _epubController.currentValue;
       if (location != null && location.chapter != null) {
-        final currentIndex = location.chapterNumber ?? 0;
+        final currentIndex = location.chapterNumber;
         final totalChapters = _epubController.tableOfContents().length;
 
         if (totalChapters > 0) {

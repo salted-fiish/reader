@@ -7,6 +7,11 @@ import 'pdf_viewer_screen.dart';
 import 'txt_viewer_screen.dart';
 import 'epub_viewer_screen.dart';
 import '../widgets/book_card.dart';
+import 'all_books_screen.dart';
+import '../services/ai_service.dart';
+import 'character_relationship_screen.dart';
+import 'package:flutter_pdf_text/flutter_pdf_text.dart';
+
 
 enum BookType {
   pdf,
@@ -202,6 +207,25 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
               ),
             ),
             ListTile(
+              leading: const Icon(Icons.library_books),
+              title: const Text('我的书架'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AllBooksScreen(
+                      bookPaths: _bookPaths,
+                      bookProgress: _bookProgress,
+                      onOpenBook: (path) => _openBook(context, path),
+                      onDeleteBook: (index, fileName) => 
+                        _showDeleteDialog(context, index, fileName),
+                    ),
+                  ),
+                );
+              },
+            ),
+            ListTile(
               leading: Icon(_isGridView ? Icons.view_list : Icons.grid_view),
               title: Text(_isGridView ? '列表显示' : '网格显示'),
               onTap: () {
@@ -334,7 +358,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 300),
                     height: _showList ? MediaQuery.of(context).size.height * 0.3 : 0,
-                    child: _isGridView ? _buildGridView() : _buildListView(),
+                    child: _buildFunctionButtons(),
                   ),
                 ],
               ),
@@ -346,77 +370,130 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
     );
   }
 
-  Widget _buildGridView() {
+  Widget _buildFunctionButtons() {
+    final buttonItems = [
+      {'icon': Icons.people_outline, 'title': '人物关系'},
+      {'icon': Icons.favorite, 'title': '我的收藏'},
+      {'icon': Icons.download, 'title': '本地导入'},
+      {'icon': Icons.cloud_download, 'title': '在线导入'},
+      {'icon': Icons.category, 'title': '分类管理'},
+      {'icon': Icons.sort, 'title': '排序方式'},
+    ];
+
     return GridView.builder(
       padding: const EdgeInsets.all(16),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        childAspectRatio: 0.75,
+        childAspectRatio: 3,  // 使按钮呈现长条形
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
       ),
-      itemCount: _bookPaths.length,
+      itemCount: buttonItems.length,
       itemBuilder: (context, index) {
-        final file = File(_bookPaths[index]);
-        final fileName = file.path.split('/').last;
-        // final bookType = _getBookType(file.path);
-        
-        return BookCard(
-          title: fileName,
-          coverPath: "assets/covers/default_cover.jpg",
-          progress: _bookProgress[_bookPaths[index]] ?? 0.0,
-          onTap: () => _openBook(context, _bookPaths[index]),
-        );
-      },
-    );
-  }
-
-  Widget _buildListView() {
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      itemCount: _bookPaths.length,
-      itemBuilder: (context, index) {
-        final file = File(_bookPaths[index]);
-        final fileName = file.path.split('/').last;
-        final bookType = _getBookType(file.path);
         return Container(
-          height: 64,
-          margin: const EdgeInsets.symmetric(vertical: 4),
           decoration: BoxDecoration(
-            color: const Color.fromARGB(255, 117, 117, 117),  // 使用相同的未选中颜色
+            color: const Color.fromARGB(255, 117, 117, 117),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Material(
             color: Colors.transparent,
             child: InkWell(
               borderRadius: BorderRadius.circular(8),
-              onTap: () => _openBook(context, _bookPaths[index]),
-              onLongPress: () => _showDeleteDialog(context, index, fileName),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Row(
-                  children: [
-                    _getFileIcon(bookType),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        fileName,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.white,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+              onTap: () {
+                if (index == 0) {  // 人物关系按钮
+                  _showCharacterRelationship(context);
+                }
+              },
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    buttonItems[index]['icon'] as IconData,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    buttonItems[index]['title'] as String,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
         );
       },
     );
+  }
+
+  // 添加人物关系分析方法
+  void _showCharacterRelationship(BuildContext context) async {
+    if (_bookPaths.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请先添加书籍')),
+      );
+      return;
+    }
+    
+    final currentBook = _bookPaths[0];
+    final fileName = currentBook.split('/').last;
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Text('分析 $fileName 的人物关系'),
+        content: const SizedBox(
+          height: 100,
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      ),
+    );
+    
+    try {
+      String content;
+      final fileExtension = currentBook.split('.').last.toLowerCase();
+      
+      switch (fileExtension) {
+        case 'txt':
+          content = await File(currentBook).readAsString();
+          break;
+        case 'pdf':
+          final pdfDoc = await PDFDoc.fromPath(currentBook);
+          content = await pdfDoc.text;
+          break;
+        default:
+          throw Exception('不支持的文件格式: $fileExtension');
+      }
+
+      if (content.length > 4000) {
+        content = content.substring(0, 4000);
+      }
+
+      final result = await AIService.analyzeCharacterRelationships(content);
+      
+      if (mounted) {
+        Navigator.pop(context);
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => CharacterRelationshipScreen(
+              relationshipData: result,
+              bookTitle: fileName,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('分析失败: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _showDeleteDialog(BuildContext context, int index, String fileName) async {
