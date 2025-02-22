@@ -11,12 +11,14 @@ import 'all_books_screen.dart';
 import '../services/ai_service.dart';
 import 'character_relationship_screen.dart';
 import 'package:flutter_pdf_text/flutter_pdf_text.dart';
+import '../services/mobi_processing_service.dart';
 
 
 enum BookType {
   pdf,
   txt,
   epub,
+  mobi,  // 添加 mobi 类型
   unknown
 }
 
@@ -29,7 +31,7 @@ class BookshelfScreen extends StatefulWidget {
 
 class _BookshelfScreenState extends State<BookshelfScreen> {
   List<String> _bookPaths = [];
-  bool _isGridView = false;
+  List<String> _recentBooks = [];  // 添加最近阅读的书籍列表
   bool _showList = true;  // 控制列表显示/隐藏
   final PageController _pageController = PageController(
     viewportFraction: 0.8,  // 让当前页面占据80%的宽度
@@ -42,6 +44,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
     super.initState();
     _loadSavedPDFs();
     _loadBookProgress();
+    _loadRecentBooks();  // 添加加载最近阅读的书籍
   }
 
   Future<void> _loadSavedPDFs() async {
@@ -75,6 +78,18 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
     }
   }
 
+  Future<void> _loadRecentBooks() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _recentBooks = prefs.getStringList('recent_books') ?? [];
+    });
+  }
+
+  Future<void> _saveRecentBooks() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('recent_books', _recentBooks);
+  }
+
   BookType _getBookType(String path) {
     final extension = path.split('.').last.toLowerCase();
     switch (extension) {
@@ -84,46 +99,114 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
         return BookType.txt;
       case 'epub':
         return BookType.epub;
+      case 'mobi':
+        return BookType.mobi;
       default:
         return BookType.unknown;
     }
   }
 
-  Future<void> _pickBook() async {
+  Future<void> _pickLocalBook() async {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['pdf', 'txt', 'epub'],
+        allowedExtensions: ['pdf', 'txt', 'epub'],  // 不包含 mobi
       );
 
       if (result != null && result.files.single.path != null) {
         final path = result.files.single.path!;
         setState(() {
           _bookPaths.add(path);
-          _bookProgress[path] = 0.0;  // 初始化进度
+          _bookProgress[path] = 0.0;
         });
         await _savePDFPaths();
-        await _saveBookProgress(path, 0.0);  // 保存初始进度
+        await _saveBookProgress(path, 0.0);
       }
     } catch (e) {
       debugPrint('Error picking file: $e');
     }
   }
 
-  Icon _getFileIcon(BookType type) {
-    switch (type) {
-      case BookType.pdf:
-        return const Icon(Icons.picture_as_pdf);
-      case BookType.txt:
-        return const Icon(Icons.text_snippet);
-      case BookType.epub:
-        return const Icon(Icons.book);
-      default:
-        return const Icon(Icons.insert_drive_file);
+  Future<void> _pickMobiFile() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['mobi'],
+      );
+
+      if (result != null && result.files.single.path != null) {
+        await _convertMobiToEpub(result.files.single.path!);
+      }
+    } catch (e) {
+      debugPrint('Error picking MOBI file: $e');
+    }
+  }
+
+  Future<void> _convertMobiToEpub(String mobiPath) async {
+    final service = MobiProcessingService();
+    
+    try {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('正在转换MOBI文件...')
+            ],
+          ),
+        ),
+      );
+
+      final epubUrl = await service.uploadMobiFile(File(mobiPath));
+      
+      final directory = File(mobiPath).parent.path;
+      final originalFileName = mobiPath.split('/').last;
+      final epubFileName = originalFileName.replaceAll('.mobi', '.epub');
+      final epubPath = '$directory/$epubFileName';
+      
+      await service.downloadProcessedFile(epubUrl, epubPath);
+      
+      Navigator.pop(context);
+
+      setState(() {
+        _bookPaths.remove(mobiPath);
+        _bookPaths.add(epubPath);
+        _bookProgress[epubPath] = 0.0;
+      });
+      
+      await _savePDFPaths();
+      await _saveBookProgress(epubPath, 0.0);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('MOBI文件转换成功！')),
+        );
+      }
+    } catch (e) {
+      Navigator.pop(context);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('转换失败: $e')),
+        );
+      }
     }
   }
 
   void _openBook(BuildContext context, String path) async {
+    // 更新最近阅读列表
+    setState(() {
+      _recentBooks.remove(path);  // 如果已存在，先移除
+      _recentBooks.insert(0, path);  // 添加到开头
+      if (_recentBooks.length > 3) {  // 保持最多3本书
+        _recentBooks.removeLast();
+      }
+    });
+    await _saveRecentBooks();
+
     final bookType = _getBookType(path);
     Widget viewer;
     
@@ -164,9 +247,9 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
     );
   }
 
-  // 添加一个方法来获取最近的3本书
+  // 修改获取最近书籍的方法
   List<String> _getRecentBooks() {
-    return _bookPaths.take(3).toList();  // 只取前3本书
+    return _recentBooks;  // 直接返回最近阅读的书籍列表
   }
 
   void _handleVerticalDrag(DragUpdateDetails details) {
@@ -226,16 +309,6 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
               },
             ),
             ListTile(
-              leading: Icon(_isGridView ? Icons.view_list : Icons.grid_view),
-              title: Text(_isGridView ? '列表显示' : '网格显示'),
-              onTap: () {
-                setState(() {
-                  _isGridView = !_isGridView;
-                });
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
               leading: Icon(
                 themeProvider.isDarkMode ? Icons.dark_mode : Icons.light_mode,
               ),
@@ -265,7 +338,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
         ),
       ),
       body: _bookPaths.isEmpty
-          ? const Center(child: Text('书架是空的\n点击右下角添加PDF文件'))
+          ? const Center(child: Text('书架是空的\n点击本地导入或MOBI转换添加书籍'))
           : GestureDetector(
               onVerticalDragUpdate: _handleVerticalDrag,
               child: Column(
@@ -363,28 +436,22 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
                 ],
               ),
             ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _pickBook,
-        child: const Icon(Icons.add),
-      ),
     );
   }
 
   Widget _buildFunctionButtons() {
     final buttonItems = [
-      {'icon': Icons.people_outline, 'title': '人物关系'},
-      {'icon': Icons.favorite, 'title': '我的收藏'},
-      {'icon': Icons.download, 'title': '本地导入'},
-      {'icon': Icons.cloud_download, 'title': '在线导入'},
-      {'icon': Icons.category, 'title': '分类管理'},
-      {'icon': Icons.sort, 'title': '排序方式'},
+      {'icon': Icons.people_outline, 'title': '人物关系', 'onTap': () => _showCharacterRelationship(context)},
+      {'icon': Icons.summarize, 'title': '概括上文', 'onTap': () {}},
+      {'icon': Icons.download, 'title': '本地导入', 'onTap': _pickLocalBook},
+      {'icon': Icons.transform, 'title': 'MOBI转换', 'onTap': _pickMobiFile},
     ];
 
     return GridView.builder(
       padding: const EdgeInsets.all(16),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        childAspectRatio: 3,  // 使按钮呈现长条形
+        childAspectRatio: 3,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
       ),
@@ -399,11 +466,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
             color: Colors.transparent,
             child: InkWell(
               borderRadius: BorderRadius.circular(8),
-              onTap: () {
-                if (index == 0) {  // 人物关系按钮
-                  _showCharacterRelationship(context);
-                }
-              },
+              onTap: buttonItems[index]['onTap'] as Function(),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [

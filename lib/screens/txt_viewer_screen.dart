@@ -24,7 +24,6 @@ class _TxtViewerScreenState extends State<TxtViewerScreen> {
   List<String> _pages = [];
 
   late ScrollController _scrollController;
-  double _progress = 0.0;
 
   @override
   void initState() {
