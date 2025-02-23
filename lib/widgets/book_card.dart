@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 class BookCard extends StatefulWidget {
   final String title;
   final String coverPath;
-  final VoidCallback onTap;
   final Color? color;
   final double progress;
+  final VoidCallback onTap;
 
   const BookCard({
     super.key,
@@ -21,7 +21,6 @@ class BookCard extends StatefulWidget {
 }
 
 class _BookCardState extends State<BookCard> with SingleTickerProviderStateMixin {
-  // 动画控制器
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
   
@@ -53,64 +52,60 @@ class _BookCardState extends State<BookCard> with SingleTickerProviderStateMixin
             child: Container(
               margin: const EdgeInsets.all(8.0),
               decoration: BoxDecoration(
-                color: widget.color ?? const Color.fromARGB(255, 117, 117, 117),
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+                border: Border.all(
+                  color: Colors.black,
+                  width: 1.5,
+                ),
+                color: Colors.transparent,
+                borderRadius: BorderRadius.circular(16),
               ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: AspectRatio(
-                  aspectRatio: 3 / 4,
-                  child: Stack(
+              child: AspectRatio(
+                aspectRatio: 3 / 4,
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // 书籍信息
-                      Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              alignment: Alignment.center,
-                              margin: const EdgeInsets.only(top: 40),  // 向下移动文本
-                              child: Text(
-                                widget.title,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  fontFamily: 'Times New Roman',
-                                ),
-                                textAlign: TextAlign.center,  // 文本居中
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
+                      Container(
+                        alignment: Alignment.center,
+                        margin: const EdgeInsets.only(top: 40),
+                        child: Text(
+                          widget.title,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            color: Colors.black,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        height: 4,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                        child: FractionallySizedBox(
+                          alignment: Alignment.centerLeft,
+                          widthFactor: widget.progress,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.black,
+                              borderRadius: BorderRadius.circular(2),
                             ),
-                            const SizedBox(height: 16),
-                            // 进度条
-                            Container(
-                              height: 4,
-                              width: double.infinity,
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(2),
-                              ),
-                              child: FractionallySizedBox(
-                                alignment: Alignment.centerLeft,
-                                widthFactor: widget.progress,
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.8),
-                                    borderRadius: BorderRadius.circular(2),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${(widget.progress * 100).toInt()}%',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.black,
                         ),
                       ),
                     ],

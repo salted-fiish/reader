@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 
-class AllBooksScreen extends StatelessWidget {
+class AllBooksScreen extends StatefulWidget {
   final List<String> bookPaths;
   final Map<String, double> bookProgress;
   final Function(String) onOpenBook;
@@ -16,6 +16,28 @@ class AllBooksScreen extends StatelessWidget {
   });
 
   @override
+  State<AllBooksScreen> createState() => _AllBooksScreenState();
+}
+
+class _AllBooksScreenState extends State<AllBooksScreen> {
+  late List<String> _localBookPaths;
+
+  @override
+  void initState() {
+    super.initState();
+    _localBookPaths = List.from(widget.bookPaths);
+  }
+
+  void _handleDeleteBook(int index, String fileName) async {
+    await widget.onDeleteBook(index, fileName);
+    if (mounted) {
+      setState(() {
+        _localBookPaths.removeAt(index);
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -23,9 +45,9 @@ class AllBooksScreen extends StatelessWidget {
       ),
       body: ListView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        itemCount: bookPaths.length,
+        itemCount: _localBookPaths.length,
         itemBuilder: (context, index) {
-          final file = File(bookPaths[index]);
+          final file = File(_localBookPaths[index]);
           final fileName = file.path.split('/').last;
           
           return Container(
@@ -39,8 +61,8 @@ class AllBooksScreen extends StatelessWidget {
               color: Colors.transparent,
               child: InkWell(
                 borderRadius: BorderRadius.circular(8),
-                onTap: () => onOpenBook(bookPaths[index]),
-                onLongPress: () => onDeleteBook(index, fileName),
+                onTap: () => widget.onOpenBook(_localBookPaths[index]),
+                onLongPress: () => _handleDeleteBook(index, fileName),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   child: Row(
@@ -73,7 +95,7 @@ class AllBooksScreen extends StatelessWidget {
                               ),
                               child: FractionallySizedBox(
                                 alignment: Alignment.centerLeft,
-                                widthFactor: bookProgress[bookPaths[index]] ?? 0.0,
+                                widthFactor: widget.bookProgress[_localBookPaths[index]] ?? 0.0,
                                 child: Container(
                                   decoration: BoxDecoration(
                                     color: Colors.white.withOpacity(0.8),

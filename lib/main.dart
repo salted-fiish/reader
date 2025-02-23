@@ -39,8 +39,8 @@ class _MyAppState extends State<MyApp> {
             background: Color(0xFFF5F5F5),    // 背景色：浅灰色
           ),
           appBarTheme: const AppBarTheme(
-            backgroundColor: Color(0xFF2C2C2C),
-            foregroundColor: Colors.white,
+            backgroundColor: Color(0xFF2C2C2C),  // 改回深灰色
+            foregroundColor: Colors.white,       // 改回白色
           ),
           drawerTheme: const DrawerThemeData(
             backgroundColor: Colors.white,
