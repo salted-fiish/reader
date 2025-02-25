@@ -31,11 +31,13 @@ dependencies:
   flutter:
     sdk: flutter
   archive: ^3.4.10
+  xml: ^6.5.0
   path: ^1.8.3
+  flutter_html: ^3.0.0-beta.2
+  gbk_codec: ^0.4.0
   flutter_widget_from_html: ^0.15.3
   http: ^1.1.0
   file_picker: ^6.0.0
-  shared_preferences: ^2.2.2
   provider: ^6.1.2        # 状态管理
   hive: ^2.2.3 # 本地存储
   hive_flutter: ^1.1.0 # 本地存储
@@ -47,6 +49,7 @@ dependencies:
   graphview: ^1.2.0
   syncfusion_flutter_pdf: ^24.1.41
   flutter_pdf_text: ^0.8.1
+  shared_preferences: ^2.2.2
   
 
 dev_dependencies:
