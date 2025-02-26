@@ -59,65 +59,104 @@ class _PDFViewerScreenState extends State<PDFViewerScreen> {
             onPageChanged: _updateProgress,
           ),
           
-          if (_showMenu) ...[
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: Container(
+          // 顶部菜单栏 - 灵动岛风格
+          if (_showMenu) Positioned(
+            top: MediaQuery.of(context).padding.top + 10,
+            left: 20,
+            right: 20,
+            child: Container(
+              decoration: BoxDecoration(
                 color: const Color(0xFF2C2C2C).withOpacity(0.9),
-                child: SafeArea(
-                  child: AppBar(
-                    backgroundColor: Colors.transparent,
-                    elevation: 0,
-                    leading: IconButton(
-                      icon: const Icon(Icons.arrow_back),
-                      color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
                       onPressed: () => Navigator.pop(context),
+                      tooltip: '返回',
                     ),
-                    title: Text(
-                      widget.pdfPath.split('/').last,
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Container(
-                color: const Color(0xFF2C2C2C).withOpacity(0.9),
-                child: SafeArea(
-                  top: false,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        IconButton(
-                          icon: Icon(
-                            _scrollDirection == PdfScrollDirection.horizontal
-                                ? Icons.view_day
-                                : Icons.auto_stories,
-                            color: Colors.white,
-                          ),
-                          onPressed: () {
-                            setState(() {
-                              _scrollDirection = _scrollDirection == PdfScrollDirection.horizontal
-                                  ? PdfScrollDirection.vertical
-                                  : PdfScrollDirection.horizontal;
-                            });
-                          },
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        widget.pdfPath.split('/').last,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
                         ),
-                      ],
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
+                    Text(
+                      '${_pdfViewerController.pageNumber}/$_totalPages',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-          ],
+          ),
+          
+          // 底部菜单栏 - 灵动岛风格
+          if (_showMenu) Positioned(
+            bottom: MediaQuery.of(context).padding.bottom + 10,
+            left: 20,
+            right: 20,
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFF2C2C2C).withOpacity(0.9),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.zoom_out, color: Colors.white),
+                      onPressed: () {
+                        _pdfViewerController.zoomLevel = 
+                            (_pdfViewerController.zoomLevel - 0.25).clamp(0.75, 3.0);
+                      },
+                      tooltip: '缩小',
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.zoom_in, color: Colors.white),
+                      onPressed: () {
+                        _pdfViewerController.zoomLevel = 
+                            (_pdfViewerController.zoomLevel + 0.25).clamp(0.75, 3.0);
+                      },
+                      tooltip: '放大',
+                    ),
+                    IconButton(
+                      icon: Icon(
+                        _scrollDirection == PdfScrollDirection.horizontal
+                            ? Icons.view_day
+                            : Icons.auto_stories,
+                        color: Colors.white,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _scrollDirection = _scrollDirection == PdfScrollDirection.horizontal
+                              ? PdfScrollDirection.vertical
+                              : PdfScrollDirection.horizontal;
+                        });
+                      },
+                      tooltip: _scrollDirection == PdfScrollDirection.horizontal
+                          ? '垂直滚动'
+                          : '水平翻页',
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );

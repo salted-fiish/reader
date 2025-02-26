@@ -294,111 +294,10 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
   Widget build(BuildContext context) {
     final recentBooks = _getRecentBooks();
     final screenHeight = MediaQuery.of(context).size.height;
-    final currentBook = recentBooks.isNotEmpty ? recentBooks[_currentPage] : null;
+    final currentBook = recentBooks.isNotEmpty ? recentBooks[0] : null;
     final progress = currentBook != null ? (_bookProgress[currentBook] ?? 0.0) : 0.0;
     
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('我的书桌'),
-      ),
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            DrawerHeader(
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              child: const Text(
-                '阅读器',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                ),
-              ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.library_books),
-              title: const Text('我的书架'),
-              onTap: () async {  // 添加 async
-                Navigator.pop(context);
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => AllBooksScreen(
-                      bookPaths: _bookPaths,
-                      bookProgress: _bookProgress,
-                      onOpenBook: (path) => _openBook(context, path),
-                      onDeleteBook: (index, fileName) => 
-                        _showDeleteDialog(context, index, fileName),
-                    ),
-                  ),
-                );
-                // 在返回时刷新数据
-                await _refreshData();
-              },
-            ),
-            const Spacer(),  // 添加弹性空间
-            const Divider(),  // 添加分隔线
-            ListTile(
-              leading: const Icon(Icons.settings),
-              title: const Text('设置'),
-              onTap: () {
-                Navigator.pop(context);  // 关闭抽屉
-                showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('设置'),
-                    content: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        ListTile(
-                          leading: const Icon(Icons.delete_forever),
-                          title: const Text('清除所有数据'),
-                          onTap: () async {
-                            final confirm = await showDialog<bool>(
-                              context: context,
-                              builder: (context) => AlertDialog(
-                                title: const Text('确认清除'),
-                                content: const Text('这将删除所有书籍和阅读进度，确定要继续吗？'),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context, false),
-                                    child: const Text('取消'),
-                                  ),
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context, true),
-                                    child: const Text('确定'),
-                                  ),
-                                ],
-                              ),
-                            );
-                            
-                            if (confirm == true) {
-                              await _clearAllData();
-                              if (mounted) {
-                                Navigator.pop(context);  // 关闭设置对话框
-                                setState(() {});  // 刷新界面
-                              }
-                            }
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.info),
-              title: const Text('关于'),
-              onTap: () {
-                Navigator.pop(context);
-              },
-            ),
-          ],
-        ),
-      ),
       body: _bookPaths.isEmpty
           ? Center(
               child: Column(
@@ -462,33 +361,144 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
                   // 主界面书籍展示
                   Column(
                     children: [
-                      const SizedBox(height: 100),  // 增加顶部间距，从60改为100
-                      SizedBox(
-                        height: screenHeight * 0.45,  // 保持高度不变
-                        child: PageView.builder(
-                          controller: _mainPageController,
-                          itemCount: recentBooks.length,
-                          onPageChanged: (index) {
-                            setState(() {
-                              _currentPage = index;
-                            });
-                          },
-                          itemBuilder: (context, index) {
-                            final file = File(recentBooks[index]);
-                            final fileName = file.path.split('/').last;
-                            return BookCard(
-                              title: fileName,
-                              coverPath: "",
-                              color: Colors.transparent,
-                              progress: _bookProgress[recentBooks[index]] ?? 0.0,
-                              onTap: () => _openBook(context, recentBooks[index]),
-                            );
-                          },
+                      const SizedBox(height: 20),
+                      // 新的书籍卡片设计
+                      if (currentBook != null)
+                        Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 20),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[100],
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Row(
+                              children: [
+                                // 书籍封面
+                                Container(
+                                  width: 100,
+                                  height: 150,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[300],
+                                    borderRadius: BorderRadius.circular(8),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.2),
+                                        blurRadius: 5,
+                                        offset: const Offset(0, 3),
+                                      ),
+                                    ],
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Material(
+                                      color: Colors.transparent,
+                                      child: InkWell(
+                                        onTap: () => _openBook(context, currentBook),
+                                        child: const Center(
+                                          child: Icon(
+                                            Icons.book,
+                                            size: 40,
+                                            color: Colors.black54,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                // 书籍信息
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        '正在阅读',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        '${(progress * 100).toInt()}%',
+                                        style: const TextStyle(
+                                          fontSize: 36,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF2D3A3A),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        '~ 19 小时剩余',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                      const SizedBox(height: 16),
+                                      // 进度条
+                                      Container(
+                                        height: 6,
+                                        width: double.infinity,
+                                        decoration: BoxDecoration(
+                                          color: Colors.grey[300],
+                                          borderRadius: BorderRadius.circular(3),
+                                        ),
+                                        child: FractionallySizedBox(
+                                          alignment: Alignment.centerLeft,
+                                          widthFactor: progress,
+                                          child: Container(
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF2D3A3A),
+                                              borderRadius: BorderRadius.circular(3),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      
+                      // 阅读时长信息
+                      Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '今日阅读',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey[800],
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                _buildReadingStatItem('2.5', '小时'),
+                                _buildReadingStatItem('12', '章节'),
+                                _buildReadingStatItem('15%', '进度'),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
+                      
                       const Spacer(),
                       SizedBox(
-                        height: screenHeight * 0.25,  // 保持按钮区域高度不变
+                        height: screenHeight * 0.25,
                         child: _buildFunctionButtons(),
                       ),
                       const SizedBox(height: 20),
@@ -514,7 +524,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
                             child: Container(
                               margin: const EdgeInsets.symmetric(horizontal: 16),
                               decoration: BoxDecoration(
-                                color: Colors.grey[200],  // 设置灰色填充
+                                color: Colors.grey[200],
                                 borderRadius: BorderRadius.circular(16),
                               ),
                               child: Center(
@@ -566,7 +576,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
                             child: Container(
                               margin: const EdgeInsets.symmetric(horizontal: 16),
                               decoration: BoxDecoration(
-                                color: Colors.grey[200],  // 设置灰色填充
+                                color: Colors.grey[200],
                                 borderRadius: BorderRadius.circular(16),
                               ),
                               child: ReadingHistoryChart(
@@ -582,7 +592,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
                               margin: const EdgeInsets.symmetric(horizontal: 16),
                               padding: const EdgeInsets.all(20),
                               decoration: BoxDecoration(
-                                color: Colors.grey[200],  // 设置灰色填充
+                                color: Colors.grey[200],
                                 borderRadius: BorderRadius.circular(16),
                               ),
                               child: Row(
@@ -592,7 +602,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
                                     width: 100,
                                     height: 140,
                                     decoration: BoxDecoration(
-                                      color: Colors.grey[300],  // 设置封面背景色
+                                      color: Colors.grey[300],
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: const Center(
@@ -654,34 +664,49 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
       itemBuilder: (context, index) {
         return Container(
           decoration: BoxDecoration(
-            border: Border.all(
-              color: Colors.black,
-              width: 1.5,
-            ),
-            color: Colors.transparent,
+            color: Colors.grey[100],
             borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 3,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(16),
               onTap: buttonItems[index]['onTap'] as Function(),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    buttonItems[index]['icon'] as IconData,
-                    color: Colors.black,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    buttonItems[index]['title'] as String,
-                    style: const TextStyle(
-                      color: Colors.black,
-                      fontSize: 16,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2D3A3A).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        buttonItems[index]['icon'] as IconData,
+                        color: const Color(0xFF2D3A3A),
+                        size: 20,
+                      ),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 12),
+                    Text(
+                      buttonItems[index]['title'] as String,
+                      style: const TextStyle(
+                        color: Color(0xFF2D3A3A),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -762,6 +787,29 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
         );
       }
     }
+  }
+
+  Widget _buildReadingStatItem(String value, String label) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF2D3A3A),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.grey[600],
+          ),
+        ),
+      ],
+    );
   }
 
   Future<void> _showDeleteDialog(BuildContext context, int index, String fileName) async {

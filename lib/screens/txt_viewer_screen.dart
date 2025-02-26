@@ -96,77 +96,88 @@ class _TxtViewerScreenState extends State<TxtViewerScreen> {
                     ),
                   ),
             if (_showMenu) ...[
-              // 顶部菜单栏
+              // 顶部菜单栏 - 灵动岛风格
               Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
+                top: MediaQuery.of(context).padding.top + 10,
+                left: 20,
+                right: 20,
                 child: Container(
-                  color: const Color(0xFF2C2C2C).withOpacity(0.9),
-                  child: SafeArea(
-                    child: AppBar(
-                      backgroundColor: Colors.transparent,
-                      elevation: 0,
-                      leading: IconButton(
-                        icon: const Icon(Icons.arrow_back),
-                        color: Colors.white,
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                      title: Text(
-                        widget.txtPath.split('/').last,
-                        style: const TextStyle(color: Colors.white),
-                      ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2C2C2C).withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.arrow_back, color: Colors.white),
+                          onPressed: () => Navigator.pop(context),
+                          tooltip: '返回',
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            widget.txtPath.split('/').last,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ),
-              // 底部菜单栏
+              // 底部菜单栏 - 灵动岛风格
               Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
+                bottom: MediaQuery.of(context).padding.bottom + 10,
+                left: 20,
+                right: 20,
                 child: Container(
-                  color: const Color(0xFF2C2C2C).withOpacity(0.9),
-                  child: SafeArea(
-                    top: false,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.text_decrease),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2C2C2C).withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.text_decrease, color: Colors.white),
+                          onPressed: () {
+                            setState(() {
+                              _fontSize = (_fontSize - 2).clamp(12, 32);
+                            });
+                          },
+                          tooltip: '缩小字体',
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.text_increase, color: Colors.white),
+                          onPressed: () {
+                            setState(() {
+                              _fontSize = (_fontSize + 2).clamp(12, 32);
+                            });
+                          },
+                          tooltip: '放大字体',
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            _isPageMode ? Icons.view_day : Icons.auto_stories,
                             color: Colors.white,
-                            onPressed: () {
-                              setState(() {
-                                _fontSize = (_fontSize - 2).clamp(12, 32);
-                              });
-                            },
                           ),
-                          const SizedBox(width: 16),
-                          IconButton(
-                            icon: const Icon(Icons.text_increase),
-                            color: Colors.white,
-                            onPressed: () {
-                              setState(() {
-                                _fontSize = (_fontSize + 2).clamp(12, 32);
-                              });
-                            },
-                          ),
-                          const SizedBox(width: 16),
-                          IconButton(
-                            icon: Icon(
-                              _isPageMode ? Icons.view_day : Icons.auto_stories,
-                              color: Colors.white,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                _isPageMode = !_isPageMode;
-                              });
-                            },
-                          ),
-                        ],
-                      ),
+                          onPressed: () {
+                            setState(() {
+                              _isPageMode = !_isPageMode;
+                            });
+                          },
+                          tooltip: _isPageMode ? '滚动模式' : '翻页模式',
+                        ),
+                      ],
                     ),
                   ),
                 ),

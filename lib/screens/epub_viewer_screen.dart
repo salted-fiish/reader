@@ -30,6 +30,7 @@ class _EpubViewerScreenState extends State<EpubViewerScreen> {
   final ScrollController _scrollController = ScrollController();
   Map<int, double> _chapterScrollPositions = {};
   bool _showMenu = false;  // 添加菜单显示状态控制
+  double _fontSize = 18.0; // 默认字体大小
 
   @override
   void initState() {
@@ -37,6 +38,7 @@ class _EpubViewerScreenState extends State<EpubViewerScreen> {
     print("🚀 初始化EpubViewerScreen");
     _scrollController.addListener(_handleScroll);
     _loadEpub();
+    _loadSettings();
   }
 
   void _handleScroll() {
@@ -85,6 +87,10 @@ class _EpubViewerScreenState extends State<EpubViewerScreen> {
       }
     }
 
+    // 尝试从CFI恢复位置
+    await _restoreFromCfi();
+    
+    // 如果CFI恢复失败，则使用传统方式恢复
     if (mounted) {
       setState(() {
         _currentChapter = lastChapter;
@@ -126,9 +132,107 @@ class _EpubViewerScreenState extends State<EpubViewerScreen> {
         final scrollPositionsStr = json.encode(serializableMap);
         await prefs.setString('${widget.epubPath}_scroll_positions', scrollPositionsStr);
         print("💾 保存进度成功 - 章节: $_currentChapter, 位置Map: $serializableMap");
+        
+        // 生成并保存CFI
+        final cfi = _generateEpubCfi();
+        if (cfi.isNotEmpty) {
+          await prefs.setString('${widget.epubPath}_cfi', cfi);
+          print("📍 保存CFI成功: $cfi");
+        }
       }
     } catch (e, stackTrace) {
       print("❌ 保存进度失败: $e");
+      print("调用栈: $stackTrace");
+    }
+  }
+
+  /// **📌 生成EPUB CFI (Content Fragment Identifier)**
+  String _generateEpubCfi() {
+    try {
+      if (_currentChapter >= _parser.chapters.length) {
+        print("⚠️ 生成CFI失败: 当前章节索引超出范围");
+        return "";
+      }
+      
+      final chapter = _parser.chapters[_currentChapter];
+      if (chapter == null) {
+        print("⚠️ 生成CFI失败: 当前章节为null");
+        return "";
+      }
+      
+      // 计算当前在章节中的相对位置
+      double progress = 0.0;
+      if (_scrollController.hasClients && _scrollController.position.maxScrollExtent > 0) {
+        progress = _scrollController.offset / _scrollController.position.maxScrollExtent;
+      }
+      
+      // 基本CFI格式: /6/4[chapterID]!/4/2/1:0.123
+      // 其中0.123是章节内的相对位置
+      final chapterId = chapter.href.split('.').first;
+      final cfi = "/6/4[$chapterId]!/4/2/1:${progress.toStringAsFixed(4)}";
+      
+      print("📊 生成CFI - 章节: $_currentChapter, 标题: ${chapter.title}, 进度: ${(progress * 100).toStringAsFixed(2)}%, CFI: $cfi");
+      return cfi;
+    } catch (e, stackTrace) {
+      print("❌ 生成CFI失败: $e");
+      print("调用栈: $stackTrace");
+      return "";
+    }
+  }
+
+  /// **📌 从CFI恢复阅读位置**
+  Future<void> _restoreFromCfi() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cfi = prefs.getString('${widget.epubPath}_cfi');
+      
+      if (cfi == null || cfi.isEmpty) {
+        print("ℹ️ 没有找到保存的CFI");
+        return;
+      }
+      
+      print("🔍 尝试从CFI恢复位置: $cfi");
+      
+      // 解析CFI格式: /6/4[chapterID]!/4/2/1:0.123
+      final regex = RegExp(r'/6/4\[(.*?)\]!/4/2/1:([\d\.]+)');
+      final match = regex.firstMatch(cfi);
+      
+      if (match != null && match.groupCount >= 2) {
+        final chapterId = match.group(1);
+        final progress = double.tryParse(match.group(2) ?? "0") ?? 0.0;
+        
+        print("📖 解析CFI - 章节ID: $chapterId, 进度: ${(progress * 100).toStringAsFixed(2)}%");
+        
+        // 查找对应章节
+        int chapterIndex = -1;
+        for (int i = 0; i < _parser.chapters.length; i++) {
+          if (_parser.chapters[i].href.contains(chapterId!)) {
+            chapterIndex = i;
+            break;
+          }
+        }
+        
+        if (chapterIndex >= 0) {
+          setState(() {
+            _currentChapter = chapterIndex;
+          });
+          
+          // 计算滚动位置
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (_scrollController.hasClients) {
+              final targetPosition = _scrollController.position.maxScrollExtent * progress;
+              print("📱 从CFI恢复滚动位置: $targetPosition");
+              _scrollController.jumpTo(targetPosition);
+            }
+          });
+          
+          return;
+        }
+      }
+      
+      print("⚠️ CFI格式无效或找不到对应章节");
+    } catch (e, stackTrace) {
+      print("❌ 从CFI恢复位置失败: $e");
       print("调用栈: $stackTrace");
     }
   }
@@ -171,103 +275,475 @@ class _EpubViewerScreenState extends State<EpubViewerScreen> {
     });
   }
 
+  // 加载用户设置
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _fontSize = prefs.getDouble('epub_font_size') ?? 18.0;
+    });
+    print("⚙️ 加载设置 - 字体大小: $_fontSize");
+  }
+
+  // 保存用户设置
+  Future<void> _saveSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('epub_font_size', _fontSize);
+    print("⚙️ 保存设置 - 字体大小: $_fontSize");
+  }
+
+  // 增加字体大小
+  void _increaseFontSize() {
+    setState(() {
+      _fontSize = _fontSize + 1.0;
+      if (_fontSize > 30.0) _fontSize = 30.0;
+    });
+    _saveSettings();
+  }
+
+  // 减小字体大小
+  void _decreaseFontSize() {
+    setState(() {
+      _fontSize = _fontSize - 1.0;
+      if (_fontSize < 12.0) _fontSize = 12.0;
+    });
+    _saveSettings();
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    if (_parser.chapters.isEmpty) {
-      return const Scaffold(
-        body: Center(child: Text('无法加载电子书内容')),
-      );
-    }
-
     return Scaffold(
-      extendBodyBehindAppBar: true,  // 内容延伸到AppBar下方
-      appBar: _showMenu ? AppBar(
-        backgroundColor: Theme.of(context).appBarTheme.backgroundColor?.withOpacity(0.9),
-        title: Text(_parser.chapters[_currentChapter].title),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ) : null,
-      body: GestureDetector(
-        onTap: _toggleMenu,
-        child: SingleChildScrollView(
-          controller: _scrollController,
-          padding: const EdgeInsets.all(16),
-          child: Html(
-            data: _parser.chapters[_currentChapter].content,
-            style: {
-              "body": Style(
-                fontSize: FontSize(18),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : GestureDetector(
+              onTap: () {
+                setState(() {
+                  _showMenu = !_showMenu;
+                });
+              },
+              child: Stack(
+                children: [
+                  SingleChildScrollView(
+                    controller: _scrollController,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _parser.chapters[_currentChapter].title,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Html(
+                            data: _parser.chapters[_currentChapter].content,
+                            style: {
+                              "body": Style(
+                                fontSize: FontSize(_fontSize),
+                                lineHeight: LineHeight(1.5),
+                              ),
+                              "p": Style(
+                                margin: Margins.only(bottom: 16),
+                              ),
+                            },
+                          ),
+                          const SizedBox(height: 50),
+                        ],
+                      ),
+                    ),
+                  ),
+                  // 顶部菜单栏 - 灵动岛风格
+                  if (_showMenu)
+                    Positioned(
+                      top: MediaQuery.of(context).padding.top + 10,
+                      left: 20,
+                      right: 20,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2C2C2C).withOpacity(0.9),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                          child: Row(
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                                onPressed: () => Navigator.of(context).pop(),
+                                tooltip: '返回',
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _parser.chapters[_currentChapter].title,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              Text(
+                                '${_currentChapter + 1}/${_parser.chapters.length}',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  // 底部菜单栏 - 灵动岛风格
+                  if (_showMenu)
+                    Positioned(
+                      bottom: MediaQuery.of(context).padding.bottom + 10,
+                      left: 20,
+                      right: 20,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2C2C2C).withOpacity(0.9),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+                                onPressed: _previousChapter,
+                                tooltip: '上一章',
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.list, color: Colors.white),
+                                onPressed: _showChapterList,
+                                tooltip: '目录',
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.settings, color: Colors.white),
+                                onPressed: _showSettings,
+                                tooltip: '设置',
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.arrow_forward_ios, color: Colors.white),
+                                onPressed: _nextChapter,
+                                tooltip: '下一章',
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
-            },
-          ),
-        ),
-      ),
-      bottomNavigationBar: _showMenu ? Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).bottomAppBarTheme.color?.withOpacity(0.9),
-          border: Border(
-            top: BorderSide(
-              color: Theme.of(context).dividerColor,
-              width: 0.5,
             ),
-          ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.list),
-                  onPressed: _showChapterList,
-                  tooltip: '章节列表',
-                ),
-                Text(
-                  '${_currentChapter + 1}/${_parser.chapters.length}',
-                  style: const TextStyle(fontSize: 16),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.menu_book),
-                  onPressed: () {
-                    // 这里可以添加其他阅读设置，比如字体大小、背景色等
-                  },
-                  tooltip: '阅读设置',
-                ),
-              ],
-            ),
-          ),
-        ),
-      ) : null,
     );
   }
 
   void _showChapterList() {
     showModalBottomSheet(
       context: context,
-      builder: (context) => ListView.builder(
-        itemCount: _parser.chapters.length,
-        itemBuilder: (context, index) {
-          return ListTile(
-            title: Text(_parser.chapters[index].title),
-            onTap: () {
-              setState(() {
-                _currentChapter = index;
-                widget.onProgressChanged(_currentChapter / _parser.chapters.length);
-              });
-              _savePosition();
-              Navigator.pop(context);
-            },
-          );
-        },
+      isScrollControlled: true,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        maxChildSize: 0.9,
+        minChildSize: 0.5,
+        expand: false,
+        builder: (context, scrollController) => Container(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '目录',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: ListView.builder(
+                  controller: scrollController,
+                  itemCount: _parser.chapters.length,
+                  itemBuilder: (context, index) {
+                    return ListTile(
+                      title: Text(
+                        _parser.chapters[index].title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontWeight: _currentChapter == index ? FontWeight.bold : FontWeight.normal,
+                          color: _currentChapter == index ? Theme.of(context).colorScheme.primary : null,
+                        ),
+                      ),
+                      onTap: () {
+                        Navigator.pop(context);
+                        setState(() {
+                          _currentChapter = index;
+                          widget.onProgressChanged(_currentChapter / _parser.chapters.length);
+                        });
+                        
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (_scrollController.hasClients) {
+                            final savedPosition = _chapterScrollPositions[_currentChapter] ?? 0.0;
+                            _scrollController.jumpTo(savedPosition);
+                          }
+                        });
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showSettings() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '阅读设置',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            // 字体大小调整
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.text_decrease),
+                  onPressed: () {
+                    _decreaseFontSize();
+                    Navigator.pop(context);
+                  },
+                  tooltip: '减小字体',
+                ),
+                Text(
+                  '字体大小: ${_fontSize.toInt()}',
+                  style: const TextStyle(fontSize: 16),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.text_increase),
+                  onPressed: () {
+                    _increaseFontSize();
+                    Navigator.pop(context);
+                  },
+                  tooltip: '增大字体',
+                ),
+              ],
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.bookmark),
+              title: const Text('生成书签'),
+              onTap: () async {
+                final cfi = _generateEpubCfi();
+                if (cfi.isNotEmpty) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('已创建书签: ${_parser.chapters[_currentChapter].title}')),
+                  );
+                  
+                  // 这里可以添加保存书签的逻辑
+                  final prefs = await SharedPreferences.getInstance();
+                  final bookmarks = prefs.getStringList('${widget.epubPath}_bookmarks') ?? [];
+                  final bookmark = json.encode({
+                    'cfi': cfi,
+                    'title': _parser.chapters[_currentChapter].title,
+                    'chapter': _currentChapter,
+                    'timestamp': DateTime.now().millisecondsSinceEpoch,
+                  });
+                  bookmarks.add(bookmark);
+                  await prefs.setStringList('${widget.epubPath}_bookmarks', bookmarks);
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.bookmark_border),
+              title: const Text('查看书签'),
+              onTap: () {
+                Navigator.pop(context);
+                _showBookmarks();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.info_outline),
+              title: const Text('图书信息'),
+              onTap: () {
+                Navigator.pop(context);
+                _showBookInfo();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showBookmarks() async {
+    final prefs = await SharedPreferences.getInstance();
+    final bookmarks = prefs.getStringList('${widget.epubPath}_bookmarks') ?? [];
+    
+    if (bookmarks.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: const Text('没有保存的书签')),
+        );
+      }
+      return;
+    }
+    
+    if (mounted) {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        builder: (context) => DraggableScrollableSheet(
+          initialChildSize: 0.7,
+          maxChildSize: 0.9,
+          minChildSize: 0.5,
+          expand: false,
+          builder: (context, scrollController) => Container(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '书签',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: ListView.builder(
+                    controller: scrollController,
+                    itemCount: bookmarks.length,
+                    itemBuilder: (context, index) {
+                      final bookmark = json.decode(bookmarks[index]);
+                      final title = bookmark['title'] as String;
+                      final timestamp = DateTime.fromMillisecondsSinceEpoch(bookmark['timestamp'] as int);
+                      final formattedDate = '${timestamp.year}-${timestamp.month.toString().padLeft(2, '0')}-${timestamp.day.toString().padLeft(2, '0')} ${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}';
+                      
+                      return ListTile(
+                        title: Text(title),
+                        subtitle: Text(formattedDate),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete),
+                          onPressed: () async {
+                            bookmarks.removeAt(index);
+                            await prefs.setStringList('${widget.epubPath}_bookmarks', bookmarks);
+                            Navigator.pop(context);
+                            _showBookmarks();
+                          },
+                        ),
+                        onTap: () {
+                          Navigator.pop(context);
+                          final cfi = bookmark['cfi'] as String;
+                          _jumpToCfi(cfi);
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+  }
+
+  void _jumpToCfi(String cfi) async {
+    try {
+      print("🔍 尝试跳转到CFI: $cfi");
+      
+      final regex = RegExp(r'/6/4\[(.*?)\]!/4/2/1:([\d\.]+)');
+      final match = regex.firstMatch(cfi);
+      
+      if (match != null && match.groupCount >= 2) {
+        final chapterId = match.group(1);
+        final progress = double.tryParse(match.group(2) ?? "0") ?? 0.0;
+        
+        print("📖 解析CFI - 章节ID: $chapterId, 进度: ${(progress * 100).toStringAsFixed(2)}%");
+        
+        // 查找对应章节
+        int chapterIndex = -1;
+        for (int i = 0; i < _parser.chapters.length; i++) {
+          if (_parser.chapters[i].href.contains(chapterId!)) {
+            chapterIndex = i;
+            break;
+          }
+        }
+        
+        if (chapterIndex >= 0) {
+          setState(() {
+            _currentChapter = chapterIndex;
+            widget.onProgressChanged(_currentChapter / _parser.chapters.length);
+          });
+          
+          // 计算滚动位置
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (_scrollController.hasClients) {
+              final targetPosition = _scrollController.position.maxScrollExtent * progress;
+              print("📱 跳转到滚动位置: $targetPosition");
+              _scrollController.jumpTo(targetPosition);
+            }
+          });
+          
+          return;
+        }
+      }
+      
+      print("⚠️ CFI格式无效或找不到对应章节");
+    } catch (e, stackTrace) {
+      print("❌ 跳转到CFI失败: $e");
+      print("调用栈: $stackTrace");
+    }
+  }
+
+  void _showBookInfo() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('图书信息'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('文件路径: ${widget.epubPath}'),
+            const SizedBox(height: 8),
+            Text('章节数量: ${_parser.chapters.length}'),
+            const SizedBox(height: 8),
+            Text('当前章节: ${_currentChapter + 1}/${_parser.chapters.length}'),
+            const SizedBox(height: 8),
+            Text('阅读进度: ${((_currentChapter + 1) / _parser.chapters.length * 100).toStringAsFixed(2)}%'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('关闭'),
+          ),
+        ],
       ),
     );
   }
