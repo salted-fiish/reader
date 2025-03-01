@@ -314,15 +314,16 @@ class _EpubViewerScreenState extends State<EpubViewerScreen> {
     return Scaffold(
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : GestureDetector(
-              onTap: () {
-                setState(() {
-                  _showMenu = !_showMenu;
-                });
-              },
-              child: Stack(
-                children: [
-                  SingleChildScrollView(
+          : Stack(
+              children: [
+                // 内容区域
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _showMenu = !_showMenu;
+                    });
+                  },
+                  child: SingleChildScrollView(
                     controller: _scrollController,
                     child: Padding(
                       padding: const EdgeInsets.all(16.0),
@@ -337,110 +338,118 @@ class _EpubViewerScreenState extends State<EpubViewerScreen> {
                             ),
                           ),
                           const SizedBox(height: 16),
-                          Html(
-                            data: _parser.chapters[_currentChapter].content,
-                            style: {
-                              "body": Style(
-                                fontSize: FontSize(_fontSize),
-                                lineHeight: LineHeight(1.5),
-                              ),
-                              "p": Style(
-                                margin: Margins.only(bottom: 16),
-                              ),
-                            },
+                          // 解决Expanded错误，改用 ConstrainedBox
+                          ConstrainedBox(
+                            constraints: BoxConstraints(
+                              minHeight: MediaQuery.of(context).size.height - 150, // 确保至少填满屏幕
+                            ),
+                            child: Html(
+                              data: _parser.chapters[_currentChapter].content,
+                              style: {
+                                "body": Style(
+                                  fontSize: FontSize(_fontSize),
+                                  lineHeight: LineHeight(1.5),
+                                ),
+                                "p": Style(
+                                  margin: Margins.only(bottom: 16),
+                                ),
+                              },
+                            ),
                           ),
-                          const SizedBox(height: 50),
+                          // 添加额外空间，防止菜单栏遮挡内容
+                          SizedBox(height: MediaQuery.of(context).padding.bottom + 80),
                         ],
                       ),
                     ),
+
                   ),
-                  // 顶部菜单栏 - 灵动岛风格
-                  if (_showMenu)
-                    Positioned(
-                      top: MediaQuery.of(context).padding.top + 10,
-                      left: 20,
-                      right: 20,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF2C2C2C).withOpacity(0.9),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                          child: Row(
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.arrow_back, color: Colors.white),
-                                onPressed: () => Navigator.of(context).pop(),
-                                tooltip: '返回',
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  _parser.chapters[_currentChapter].title,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              Text(
-                                '${_currentChapter + 1}/${_parser.chapters.length}',
+                ),
+                // 顶部菜单栏 - 灵动岛风格
+                if (_showMenu)
+                  Positioned(
+                    top: MediaQuery.of(context).padding.top + 10,
+                    left: 20,
+                    right: 20,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2C2C2C).withOpacity(0.9),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                        child: Row(
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.arrow_back, color: Colors.white),
+                              onPressed: () => Navigator.of(context).pop(),
+                              tooltip: '返回',
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _parser.chapters[_currentChapter].title,
                                 style: const TextStyle(
-                                  fontSize: 14,
                                   color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
                                 ),
+                                overflow: TextOverflow.ellipsis,
                               ),
-                            ],
-                          ),
+                            ),
+                            Text(
+                              '${_currentChapter + 1}/${_parser.chapters.length}',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                  // 底部菜单栏 - 灵动岛风格
-                  if (_showMenu)
-                    Positioned(
-                      bottom: MediaQuery.of(context).padding.bottom + 10,
-                      left: 20,
-                      right: 20,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF2C2C2C).withOpacity(0.9),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-                                onPressed: _previousChapter,
-                                tooltip: '上一章',
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.list, color: Colors.white),
-                                onPressed: _showChapterList,
-                                tooltip: '目录',
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.settings, color: Colors.white),
-                                onPressed: _showSettings,
-                                tooltip: '设置',
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.arrow_forward_ios, color: Colors.white),
-                                onPressed: _nextChapter,
-                                tooltip: '下一章',
-                              ),
-                            ],
-                          ),
+                  ),
+                // 底部菜单栏 - 灵动岛风格 - 固定在屏幕底部
+                if (_showMenu)
+                  Positioned(
+                    bottom: MediaQuery.of(context).padding.bottom + 10,
+                    left: 20,
+                    right: 20,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2C2C2C).withOpacity(0.9),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+                              onPressed: _previousChapter,
+                              tooltip: '上一章',
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.list, color: Colors.white),
+                              onPressed: _showChapterList,
+                              tooltip: '目录',
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.settings, color: Colors.white),
+                              onPressed: _showSettings,
+                              tooltip: '设置',
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.arrow_forward_ios, color: Colors.white),
+                              onPressed: _nextChapter,
+                              tooltip: '下一章',
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                ],
-              ),
+                  ),
+              ],
             ),
     );
   }

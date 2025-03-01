@@ -3,7 +3,10 @@ import 'providers/theme_provider.dart';
 import 'screens/bookshelf_screen.dart';
 import 'screens/all_books_screen.dart';
 import 'screens/data_screen.dart';
+import 'screens/welcome_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:io';
+import 'utils/file_storage_helper.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,6 +22,26 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   bool _isDarkMode = false;
+  bool _isFirstLaunch = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkFirstLaunch();
+  }
+
+  Future<void> _checkFirstLaunch() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      // 如果是第一次启动，或者强制显示欢迎页
+      _isFirstLaunch = prefs.getBool('first_launch') ?? true;
+    });
+    
+    // 设置为非首次启动
+    if (_isFirstLaunch) {
+      await prefs.setBool('first_launch', false);
+    }
+  }
 
   void _toggleTheme(bool value) {
     setState(() {
@@ -74,7 +97,11 @@ class _MyAppState extends State<MyApp> {
           ),
           useMaterial3: true,
         ),
-        home: const MainScreen(),
+        initialRoute: _isFirstLaunch ? '/' : '/home',
+        routes: {
+          '/': (context) => const WelcomeScreen(),
+          '/home': (context) => const MainScreen(),
+        },
       ),
     );
   }
@@ -91,10 +118,93 @@ class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 1; // 默认显示书桌页面
   final PageController _pageController = PageController(initialPage: 1);
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  
+  // 添加书籍路径和进度的状态
+  List<String> _bookPaths = [];
+  Map<String, double> _bookProgress = {};
 
   @override
   void initState() {
     super.initState();
+    _loadBookData();
+  }
+  
+  // 加载书籍数据
+  Future<void> _loadBookData() async {
+    final prefs = await SharedPreferences.getInstance();
+    List<String> paths = prefs.getStringList('pdf_paths') ?? [];
+    Map<String, double> progress = {};
+    
+    // 验证文件是否存在并迁移到应用存储目录
+    List<String> validPaths = [];
+    bool needsUpdate = false;
+    
+    for (var path in paths) {
+      final file = File(path);
+      if (file.existsSync()) {
+        // 检查文件是否在应用永久存储目录中
+        bool isInAppStorage = await FileStorageHelper.isFileInAppStorage(path);
+        
+        if (isInAppStorage) {
+          // 如果已经在永久存储目录中，直接使用规范化的路径
+          final normalizedPath = file.absolute.path;
+          validPaths.add(normalizedPath);
+          progress[normalizedPath] = prefs.getDouble('progress_$path') ?? 0.0;
+          
+          if (normalizedPath != path) {
+            // 更新进度信息的键
+            final oldProgress = prefs.getDouble('progress_$path') ?? 0.0;
+            await prefs.setDouble('progress_$normalizedPath', oldProgress);
+            needsUpdate = true;
+          }
+        } else {
+          // 如果不在永久存储目录中，需要迁移
+          try {
+            // 获取文件名
+            final fileName = path.split('/').last;
+            
+            // 生成唯一文件名
+            final uniqueFileName = await FileStorageHelper.generateUniqueFileName(
+              fileName, 
+              validPaths // 使用已验证的路径列表
+            );
+            
+            // 复制到永久存储
+            final newPath = await FileStorageHelper.copyFileToAppStorage(
+              file,
+              customFileName: uniqueFileName
+            );
+            
+            validPaths.add(newPath);
+            
+            // 迁移进度信息
+            final oldProgress = prefs.getDouble('progress_$path') ?? 0.0;
+            progress[newPath] = oldProgress;
+            await prefs.setDouble('progress_$newPath', oldProgress);
+            
+            needsUpdate = true;
+            debugPrint('文件已迁移到应用存储: $path -> $newPath');
+          } catch (e) {
+            debugPrint('迁移文件失败: $path, 错误: $e');
+            // 如果迁移失败，仍然保留原路径
+            validPaths.add(path);
+            progress[path] = prefs.getDouble('progress_$path') ?? 0.0;
+          }
+        }
+      }
+    }
+    
+    // 如果有更新，保存新的路径列表
+    if (needsUpdate || validPaths.length != paths.length) {
+      await prefs.setStringList('pdf_paths', validPaths);
+    }
+    
+    if (mounted) {
+      setState(() {
+        _bookPaths = validPaths;
+        _bookProgress = progress;
+      });
+    }
   }
 
   @override
@@ -107,6 +217,9 @@ class _MainScreenState extends State<MainScreen> {
     setState(() {
       _currentIndex = index;
     });
+    
+    // 页面切换时刷新数据
+    _loadBookData();
   }
 
   void _onTabTapped(int index) {
@@ -172,15 +285,18 @@ class _MainScreenState extends State<MainScreen> {
             child: PageView(
               controller: _pageController,
               onPageChanged: _onPageChanged,
-              children: const [
-                // 书架页面
-                AllBooksScreen(),
+              children: [
+                // 书架页面 - 传递共享的书籍数据
+                AllBooksScreen(
+                  bookPaths: _bookPaths,
+                  bookProgress: _bookProgress,
+                ),
                 
                 // 书桌页面
-                BookshelfScreen(),
+                const BookshelfScreen(),
                 
                 // 数据页面
-                DataScreen(),
+                const DataScreen(),
               ],
             ),
           ),
@@ -224,6 +340,17 @@ class _MainScreenState extends State<MainScreen> {
                               // 这里需要实现切换主题的功能
                             },
                           ),
+                        ),
+                        ListTile(
+                          leading: const Icon(Icons.slideshow),
+                          title: const Text('查看欢迎页'),
+                          onTap: () async {
+                            Navigator.pop(context); // 关闭设置对话框
+                            Navigator.pop(context); // 关闭抽屉菜单
+                            
+                            // 导航到欢迎页
+                            Navigator.pushNamed(context, '/');
+                          },
                         ),
                       ],
                     ),

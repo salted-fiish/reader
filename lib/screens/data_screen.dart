@@ -12,7 +12,7 @@ class DataScreen extends StatefulWidget {
 }
 
 class _DataScreenState extends State<DataScreen> {
-  List<String> _recentBooks = [];
+  List<String> _bookPaths = [];
   Map<String, double> _bookProgress = {};
   bool _isLoading = true;
   String? _currentBook;
@@ -21,6 +21,7 @@ class _DataScreenState extends State<DataScreen> {
   int _totalReadingMinutes = 0;
   int _totalReadingDays = 0;
   int _currentStreak = 0;
+  Map<String, int> _lastReadTimestamps = {};
 
   @override
   void initState() {
@@ -31,21 +32,41 @@ class _DataScreenState extends State<DataScreen> {
   Future<void> _loadData() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _recentBooks = prefs.getStringList('recent_books') ?? [];
+      _bookPaths = prefs.getStringList('pdf_paths') ?? [];
       
       // 加载每本书的进度
-      for (var path in _recentBooks) {
+      for (var path in _bookPaths) {
         _bookProgress[path] = prefs.getDouble('progress_$path') ?? 0.0;
+        _lastReadTimestamps[path] = prefs.getInt('last_read_$path') ?? 0;
       }
       
-      // 获取当前书籍
-      if (_recentBooks.isNotEmpty) {
-        _currentBook = _recentBooks[0];
-        _progress = _bookProgress[_currentBook] ?? 0.0;
+      // 获取最后阅读的书籍
+      String? lastReadBook;
+      int latestTimestamp = 0;
+      
+      for (var path in _bookPaths) {
+        final timestamp = _lastReadTimestamps[path] ?? 0;
+        if (timestamp > latestTimestamp && File(path).existsSync()) {
+          latestTimestamp = timestamp;
+          lastReadBook = path;
+        }
       }
+      
+      // 如果没有最后阅读的书籍记录，但有书籍，则使用第一本书
+      if (lastReadBook == null && _bookPaths.isNotEmpty) {
+        for (var path in _bookPaths) {
+          if (File(path).existsSync()) {
+            lastReadBook = path;
+            break;
+          }
+        }
+      }
+      
+      _currentBook = lastReadBook;
+      _progress = _currentBook != null ? (_bookProgress[_currentBook] ?? 0.0) : 0.0;
       
       // 模拟一些统计数据
-      _totalBooks = prefs.getStringList('pdf_paths')?.length ?? 0;
+      _totalBooks = _bookPaths.length;
       _totalReadingMinutes = prefs.getInt('total_reading_minutes') ?? 1250;
       _totalReadingDays = prefs.getInt('total_reading_days') ?? 45;
       _currentStreak = prefs.getInt('current_streak') ?? 7;
@@ -60,7 +81,7 @@ class _DataScreenState extends State<DataScreen> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (_recentBooks.isEmpty) {
+    if (_bookPaths.isEmpty) {
       return const Center(
         child: Text(
           '暂无阅读数据',

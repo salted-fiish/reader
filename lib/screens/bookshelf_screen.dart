@@ -14,6 +14,8 @@ import 'package:flutter_pdf_text/flutter_pdf_text.dart';
 import '../services/mobi_processing_service.dart';
 import '../painters/progress_painter.dart';
 import '../widgets/reading_history_chart.dart';
+import 'package:flutter/rendering.dart';
+import '../utils/file_storage_helper.dart';
 
 
 enum BookType {
@@ -31,11 +33,8 @@ class BookshelfScreen extends StatefulWidget {
   State<BookshelfScreen> createState() => _BookshelfScreenState();
 }
 
-class _BookshelfScreenState extends State<BookshelfScreen> {
+class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingObserver {
   List<String> _bookPaths = [];
-  List<String> _recentBooks = [];
-  bool _showList = true;
-  bool _showCompactView = false;
   
   final PageController _mainPageController = PageController(
     viewportFraction: 0.8,
@@ -45,17 +44,38 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
     viewportFraction: 0.8,
   );
   Map<String, double> _bookProgress = {};
+  Map<String, int> _lastReadTimestamps = {}; // 添加最后阅读时间戳
   int _currentPage = 0;
 
   @override
   void initState() {
     super.initState();
     _bookPaths = [];      // 确保初始为空
-    _recentBooks = [];    // 确保初始为空
     _bookProgress = {};   // 确保初始为空
+    _lastReadTimestamps = {}; // 确保初始为空
     _loadSavedPDFs();
     _loadBookProgress();
-    _loadRecentBooks();
+    _loadLastReadTimestamps(); // 加载最后阅读时间戳
+    
+    // 添加定期刷新机制
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        _fixFilePaths(); // 修复文件路径问题
+      }
+    });
+    
+    // 注册生命周期观察者
+    WidgetsBinding.instance.addObserver(this);
+  }
+  
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // 当应用恢复到前台时，检查文件
+      if (mounted) {
+        _fixFilePaths();
+      }
+    }
   }
 
   Future<void> _loadSavedPDFs() async {
@@ -73,6 +93,9 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
   Future<void> _loadBookProgress() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
+      _bookProgress.clear();  // 清除旧数据
+      
+      // 加载书架上所有书籍的进度
       for (var path in _bookPaths) {
         _bookProgress[path] = prefs.getDouble('progress_$path') ?? 0.0;
       }
@@ -89,16 +112,27 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
     }
   }
 
-  Future<void> _loadRecentBooks() async {
+  Future<void> _loadLastReadTimestamps() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _recentBooks = prefs.getStringList('recent_books') ?? [];
+      _lastReadTimestamps.clear();  // 清除旧数据
+      
+      // 加载书架上所有书籍的最后阅读时间
+      for (var path in _bookPaths) {
+        _lastReadTimestamps[path] = prefs.getInt('last_read_$path') ?? 0;
+      }
     });
   }
 
-  Future<void> _saveRecentBooks() async {
+  Future<void> _saveLastReadTimestamp(String path) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('recent_books', _recentBooks);
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    await prefs.setInt('last_read_$path', timestamp);
+    if (mounted) {  // 添加mounted检查
+      setState(() {
+        _lastReadTimestamps[path] = timestamp;
+      });
+    }
   }
 
   BookType _getBookType(String path) {
@@ -127,24 +161,60 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
       if (result != null && result.files.single.path != null) {
         final path = result.files.single.path!;
         
+        // 检查文件是否存在
+        final file = File(path);
+        if (!file.existsSync()) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('文件不存在: ${path.split('/').last}')),
+          );
+          return;
+        }
+        
         // 如果是mobi文件，先进行转换
         if (path.toLowerCase().endsWith('.mobi')) {
           await _convertMobiToEpub(path);
           return;
         }
 
+        // 获取文件名
+        final fileName = path.split('/').last;
+        
+        // 生成唯一文件名
+        final uniqueFileName = await FileStorageHelper.generateUniqueFileName(
+          fileName, 
+          _bookPaths
+        );
+        
+        // 复制文件到应用永久存储目录
+        String finalPath;
+        try {
+          finalPath = await FileStorageHelper.copyFileToAppStorage(
+            file,
+            customFileName: uniqueFileName
+          );
+          
+          if (uniqueFileName != fileName) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('已添加为: $uniqueFileName')),
+            );
+          }
+        } catch (e) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('复制文件失败: $e')),
+          );
+          return;
+        }
+
         setState(() {
-          if (!_bookPaths.contains(path)) {  // 确保不重复添加
-            _bookPaths.add(path);
-            _recentBooks.insert(0, path);    // 添加到最近阅读列表开头
-            _bookProgress[path] = 0.0;       // 初始化进度
+          if (!_bookPaths.contains(finalPath)) {  // 确保不重复添加
+            _bookPaths.add(finalPath);
+            _bookProgress[finalPath] = 0.0;       // 初始化进度
             _currentPage = 0;  // 重置当前页面索引
           }
         });
         
         await _savePDFPaths();
-        await _saveRecentBooks();
-        await _saveBookProgress(path, 0.0);
+        await _saveBookProgress(finalPath, 0.0);
       }
     } catch (e) {
       debugPrint('Error picking file: $e');
@@ -187,28 +257,63 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
 
       final epubUrl = await service.uploadMobiFile(File(mobiPath));
       
-      final directory = File(mobiPath).parent.path;
+      // 获取原始文件名并替换扩展名
       final originalFileName = mobiPath.split('/').last;
       final epubFileName = originalFileName.replaceAll('.mobi', '.epub');
-      final epubPath = '$directory/$epubFileName';
       
-      await service.downloadProcessedFile(epubUrl, epubPath);
+      // 创建临时文件
+      final directory = File(mobiPath).parent.path;
+      final tempEpubPath = '$directory/$epubFileName';
       
-      Navigator.pop(context);
-
-      setState(() {
-        _bookPaths.remove(mobiPath);
-        _bookPaths.add(epubPath);
-        _bookProgress[epubPath] = 0.0;
-      });
+      // 下载处理后的文件到临时位置
+      await service.downloadProcessedFile(epubUrl, tempEpubPath);
       
-      await _savePDFPaths();
-      await _saveBookProgress(epubPath, 0.0);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('MOBI文件转换成功！')),
+      // 将临时文件复制到应用永久存储目录
+      final tempFile = File(tempEpubPath);
+      if (tempFile.existsSync()) {
+        // 生成唯一文件名
+        final uniqueFileName = await FileStorageHelper.generateUniqueFileName(
+          epubFileName, 
+          _bookPaths
         );
+        
+        // 复制到永久存储
+        final finalPath = await FileStorageHelper.copyFileToAppStorage(
+          tempFile,
+          customFileName: uniqueFileName
+        );
+        
+        // 删除临时文件
+        try {
+          await tempFile.delete();
+        } catch (e) {
+          debugPrint('删除临时文件失败: $e');
+        }
+        
+        Navigator.pop(context); // 关闭对话框
+
+        setState(() {
+          _bookPaths.remove(mobiPath);
+          _bookPaths.add(finalPath);
+          _bookProgress[finalPath] = 0.0;
+          _currentPage = 0;  // 重置当前页面索引，确保界面更新
+        });
+        
+        await _savePDFPaths();
+        await _saveBookProgress(finalPath, 0.0);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('MOBI文件转换成功！')),
+          );
+        }
+      } else {
+        Navigator.pop(context);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('转换后的文件不存在')),
+          );
+        }
       }
     } catch (e) {
       Navigator.pop(context);
@@ -221,15 +326,17 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
   }
 
   void _openBook(BuildContext context, String path) async {
-    // 更新最近阅读列表
-    setState(() {
-      _recentBooks.remove(path);  // 如果已存在，先移除
-      _recentBooks.insert(0, path);  // 添加到开头
-      if (_recentBooks.length > 3) {  // 保持最多3本书
-        _recentBooks.removeLast();
-      }
-    });
-    await _saveRecentBooks();
+    // 检查文件是否存在
+    final file = File(path);
+    if (!file.existsSync()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('文件不存在: ${path.split('/').last}')),
+      );
+      return;
+    }
+
+    // 更新最后阅读时间戳
+    await _saveLastReadTimestamp(path);
 
     final bookType = _getBookType(path);
     Widget viewer;
@@ -240,6 +347,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
           pdfPath: path,
           onProgressChanged: (progress) async {
             await _saveBookProgress(path, progress);
+            await _saveLastReadTimestamp(path); // 同时更新最后阅读时间
           },
         );
         break;
@@ -248,6 +356,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
           txtPath: path,
           onProgressChanged: (progress) async {
             await _saveBookProgress(path, progress);
+            await _saveLastReadTimestamp(path); // 同时更新最后阅读时间
           },
         );
         break;
@@ -256,6 +365,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
           epubPath: path,
           onProgressChanged: (progress) async {
             await _saveBookProgress(path, progress);
+            await _saveLastReadTimestamp(path); // 同时更新最后阅读时间
           },
         );
         break;
@@ -269,33 +379,41 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
         builder: (context) => viewer,
       ),
     );
-  }
-
-  // 修改获取最近书籍的方法
-  List<String> _getRecentBooks() {
-    return _recentBooks;  // 直接返回最近阅读的书籍列表
-  }
-
-  void _handleVerticalDrag(DragUpdateDetails details) {
-    if (details.delta.dy > 10) {  // 向下滑动
-      setState(() {
-        _showList = false;
-        _showCompactView = true;
-      });
-    } else if (details.delta.dy < -10) {  // 向上滑动
-      setState(() {
-        _showList = true;
-        _showCompactView = false;
-      });
+    
+    // 从阅读器返回后刷新数据
+    if (mounted) {
+      await _refreshData();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final recentBooks = _getRecentBooks();
     final screenHeight = MediaQuery.of(context).size.height;
-    final currentBook = recentBooks.isNotEmpty ? recentBooks[0] : null;
-    final progress = currentBook != null ? (_bookProgress[currentBook] ?? 0.0) : 0.0;
+    
+    // 获取最后阅读的书籍
+    String? lastReadBook;
+    int latestTimestamp = 0;
+    
+    for (var path in _bookPaths) {
+      final timestamp = _lastReadTimestamps[path] ?? 0;
+      if (timestamp > latestTimestamp && File(path).existsSync()) {
+        latestTimestamp = timestamp;
+        lastReadBook = path;
+      }
+    }
+    
+    // 如果没有最后阅读的书籍记录，但有书籍，则使用第一本书
+    if (lastReadBook == null && _bookPaths.isNotEmpty) {
+      for (var path in _bookPaths) {
+        if (File(path).existsSync()) {
+          lastReadBook = path;
+          break;
+        }
+      }
+    }
+    
+    // 获取最后阅读书籍的进度
+    final lastReadProgress = lastReadBook != null ? (_bookProgress[lastReadBook] ?? 0.0) : 0.0;
     
     return Scaffold(
       body: _bookPaths.isEmpty
@@ -353,288 +471,158 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
                 ],
               ),
             )
-          : GestureDetector(
-              onVerticalDragUpdate: _handleVerticalDrag,
-              behavior: HitTestBehavior.translucent,
-              child: Stack(
-                children: [
-                  // 主界面书籍展示
-                  Column(
-                    children: [
-                      const SizedBox(height: 20),
-                      // 新的书籍卡片设计
-                      if (currentBook != null)
-                        Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 20),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[100],
-                            borderRadius: BorderRadius.circular(16),
+          : Column(
+              children: [
+                const SizedBox(height: 10),
+                
+                // 最后阅读的书籍
+                if (lastReadBook != null)
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Row(
+                        children: [
+                          // 书籍封面
+                          Container(
+                            width: 100,
+                            height: 150,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[300],
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.2),
+                                  blurRadius: 5,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  onTap: () => _openBook(context, lastReadBook!),
+                                  child: const Center(
+                                    child: Icon(
+                                      Icons.book,
+                                      size: 40,
+                                      color: Colors.black54,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Row(
+                          const SizedBox(width: 16),
+                          // 书籍信息
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // 书籍封面
+                                Text(
+                                  '最近阅读',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  '${(lastReadProgress * 100).toInt()}%',
+                                  style: const TextStyle(
+                                    fontSize: 36,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF2D3A3A),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  lastReadBook.split('/').last,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey[600],
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 16),
+                                // 进度条
                                 Container(
-                                  width: 100,
-                                  height: 150,
+                                  height: 6,
+                                  width: double.infinity,
                                   decoration: BoxDecoration(
                                     color: Colors.grey[300],
-                                    borderRadius: BorderRadius.circular(8),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.2),
-                                        blurRadius: 5,
-                                        offset: const Offset(0, 3),
-                                      ),
-                                    ],
+                                    borderRadius: BorderRadius.circular(3),
                                   ),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Material(
-                                      color: Colors.transparent,
-                                      child: InkWell(
-                                        onTap: () => _openBook(context, currentBook),
-                                        child: const Center(
-                                          child: Icon(
-                                            Icons.book,
-                                            size: 40,
-                                            color: Colors.black54,
-                                          ),
-                                        ),
+                                  child: FractionallySizedBox(
+                                    alignment: Alignment.centerLeft,
+                                    widthFactor: lastReadProgress,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF2D3A3A),
+                                        borderRadius: BorderRadius.circular(3),
                                       ),
                                     ),
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                // 书籍信息
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        '正在阅读',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.grey[600],
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        '${(progress * 100).toInt()}%',
-                                        style: const TextStyle(
-                                          fontSize: 36,
-                                          fontWeight: FontWeight.bold,
-                                          color: Color(0xFF2D3A3A),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        '~ 19 小时剩余',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.grey[600],
-                                        ),
-                                      ),
-                                      const SizedBox(height: 16),
-                                      // 进度条
-                                      Container(
-                                        height: 6,
-                                        width: double.infinity,
-                                        decoration: BoxDecoration(
-                                          color: Colors.grey[300],
-                                          borderRadius: BorderRadius.circular(3),
-                                        ),
-                                        child: FractionallySizedBox(
-                                          alignment: Alignment.centerLeft,
-                                          widthFactor: progress,
-                                          child: Container(
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFF2D3A3A),
-                                              borderRadius: BorderRadius.circular(3),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
                                   ),
                                 ),
                               ],
-                            ),
-                          ),
-                        ),
-                      
-                      // 阅读时长信息
-                      Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[100],
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '今日阅读',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.grey[800],
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceAround,
-                              children: [
-                                _buildReadingStatItem('2.5', '小时'),
-                                _buildReadingStatItem('12', '章节'),
-                                _buildReadingStatItem('15%', '进度'),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      
-                      const Spacer(),
-                      SizedBox(
-                        height: screenHeight * 0.25,
-                        child: _buildFunctionButtons(),
-                      ),
-                      const SizedBox(height: 20),
-                    ],
-                  ),
-
-                  // 下拉菜单
-                  AnimatedPositioned(
-                    duration: const Duration(milliseconds: 400),
-                    curve: Curves.easeInOut,
-                    left: 0,
-                    right: 0,
-                    top: _showCompactView ? 0 : -screenHeight,
-                    height: screenHeight,
-                    child: Container(
-                      color: Theme.of(context).scaffoldBackgroundColor,
-                      child: Column(
-                        children: [
-                          // 百分比部分
-                          Container(
-                            height: screenHeight / 3.35,
-                            padding: const EdgeInsets.symmetric(vertical: 20),
-                            child: Container(
-                              margin: const EdgeInsets.symmetric(horizontal: 16),
-                              decoration: BoxDecoration(
-                                color: Colors.grey[200],
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Center(
-                                child: Container(
-                                  width: 180,
-                                  height: 180,
-                                  child: CustomPaint(
-                                    painter: ProgressPainter(
-                                      progress: progress,
-                                      progressColor: Colors.black,
-                                      backgroundColor: Colors.grey[300]!,
-                                      strokeWidth: 8,
-                                    ),
-                                    child: Center(
-                                      child: Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        crossAxisAlignment: CrossAxisAlignment.baseline,
-                                        textBaseline: TextBaseline.alphabetic,
-                                        children: [
-                                          Text(
-                                            '${(progress * 100).toInt()}',
-                                            style: const TextStyle(
-                                              fontSize: 48,
-                                              color: Colors.black,
-                                              fontWeight: FontWeight.w600,
-                                              height: 1,
-                                            ),
-                                          ),
-                                          const Text(
-                                            '%',
-                                            style: TextStyle(
-                                              fontSize: 24,
-                                              color: Colors.black,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          // 柱状图部分
-                          Container(
-                            height: screenHeight / 3.35,
-                            padding: const EdgeInsets.symmetric(vertical: 20),
-                            child: Container(
-                              margin: const EdgeInsets.symmetric(horizontal: 16),
-                              decoration: BoxDecoration(
-                                color: Colors.grey[200],
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: ReadingHistoryChart(
-                                weeklyProgress: [0.8, 0.5, 0.3, 0.9, 0.6, 0.4, 0.7],
-                              ),
-                            ),
-                          ),
-                          // 书籍封面部分
-                          Container(
-                            height: screenHeight / 3.35,
-                            padding: const EdgeInsets.symmetric(vertical: 20),
-                            child: Container(
-                              margin: const EdgeInsets.symmetric(horizontal: 16),
-                              padding: const EdgeInsets.all(20),
-                              decoration: BoxDecoration(
-                                color: Colors.grey[200],
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Row(
-                                children: [
-                                  // 左侧封面
-                                  Container(
-                                    width: 100,
-                                    height: 140,
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey[300],
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: const Center(
-                                      child: Icon(
-                                        Icons.book,
-                                        size: 40,
-                                        color: Colors.black,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 20),
-                                  // 右侧书名
-                                  Expanded(
-                                    child: Text(
-                                      currentBook?.split('/').last ?? '',
-                                      style: const TextStyle(
-                                        fontSize: 18,
-                                        color: Colors.black,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
                             ),
                           ),
                         ],
                       ),
                     ),
                   ),
-                ],
-              ),
+                
+                // 阅读时长信息
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '今日阅读',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[800],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          _buildReadingStatItem('2.5', '小时'),
+                          _buildReadingStatItem('12', '章节'),
+                          _buildReadingStatItem('15%', '进度'),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // 功能按钮区域
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  height: screenHeight * 0.20,
+                  child: _buildFunctionButtons(),
+                ),
+                
+                // 所有书籍网格视图
+                Expanded(
+                  child: _buildBooksGrid(),
+                ),
+              ],
             ),
     );
   }
@@ -715,16 +703,40 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
     );
   }
 
+  Widget _buildReadingStatItem(String value, String label) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF2D3A3A),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.grey[600],
+          ),
+        ),
+      ],
+    );
+  }
+
   // 修改人物关系分析方法
   void _showCharacterRelationship(BuildContext context) async {
-    if (_recentBooks.isEmpty) {  // 改用 _recentBooks 检查
+    if (_bookPaths.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请先阅读一本书')),
+        const SnackBar(content: Text('请先导入一本书')),
       );
       return;
     }
     
-    final currentBook = _recentBooks[0];  // 获取最近阅读的书籍
+    // 选择第一本书进行分析
+    final currentBook = _bookPaths[0];
     final fileName = currentBook.split('/').last;
     
     showDialog(
@@ -789,26 +801,95 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
     }
   }
 
-  Widget _buildReadingStatItem(String value, String label) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF2D3A3A),
+  // 添加一个新方法来显示所有书籍的网格视图
+  Widget _buildBooksGrid() {
+    return GridView.builder(
+      padding: const EdgeInsets.all(16),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        childAspectRatio: 0.7,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+      ),
+      itemCount: _bookPaths.length,
+      itemBuilder: (context, index) {
+        final path = _bookPaths[index];
+        final fileName = path.split('/').last;
+        final progress = _bookProgress[path] ?? 0.0;
+        
+        return GestureDetector(
+          onTap: () => _openBook(context, path),
+          onLongPress: () => _showDeleteDialog(context, index, fileName),
+          child: Column(
+            children: [
+              // 书籍封面
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Stack(
+                    children: [
+                      Center(
+                        child: Icon(
+                          Icons.book,
+                          size: 40,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                      // 进度条
+                      Positioned(
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        child: Container(
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[200],
+                            borderRadius: const BorderRadius.only(
+                              bottomLeft: Radius.circular(8),
+                              bottomRight: Radius.circular(8),
+                            ),
+                          ),
+                          child: FractionallySizedBox(
+                            alignment: Alignment.centerLeft,
+                            widthFactor: progress,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF2D3A3A),
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              // 书名
+              Text(
+                fileName,
+                style: const TextStyle(
+                  fontSize: 12,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+              ),
+            ],
           ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.grey[600],
-          ),
-        ),
-      ],
+        );
+      },
     );
   }
 
@@ -835,24 +916,18 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
       final path = _bookPaths[index];
       setState(() {
         _bookPaths.removeAt(index);
-        _recentBooks.remove(path);
         _bookProgress.remove(path);
       });
       
       // 保存更新
       await _savePDFPaths();
-      await _saveRecentBooks();
       
       // 重新加载数据
       if (mounted) {
         setState(() {
           // 如果当前页面超出范围，重置为0
-          if (_currentPage >= _recentBooks.length) {
+          if (_currentPage >= _bookPaths.length) {
             _currentPage = 0;
-          }
-          // 如果没有书籍了，返回主界面
-          if (_recentBooks.isEmpty) {
-            Navigator.pop(context);
           }
         });
       }
@@ -860,13 +935,20 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
   }
 
   Future<void> _refreshData() async {
+    print("刷新书架数据");
     await _loadSavedPDFs();
-    await _loadRecentBooks();
     await _loadBookProgress();
+    await _loadLastReadTimestamps(); // 加载最后阅读时间戳
+    
     if (mounted) {
       setState(() {
-        if (_currentPage >= _recentBooks.length) {
-          _currentPage = _recentBooks.length - 1;
+        // 确保当前页面索引在有效范围内
+        if (_bookPaths.isNotEmpty) {
+          if (_currentPage >= _bookPaths.length) {
+            _currentPage = _bookPaths.length - 1;
+          }
+        } else {
+          _currentPage = 0;
         }
       });
     }
@@ -875,23 +957,136 @@ class _BookshelfScreenState extends State<BookshelfScreen> {
   Future<void> _clearAllData() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('pdf_paths');
-    await prefs.remove('recent_books');
-    // 清除所有进度数据
+    // 清除所有进度数据和最后阅读时间戳
     for (var path in _bookPaths) {
       await prefs.remove('progress_$path');
+      await prefs.remove('last_read_$path');
     }
     setState(() {
       _bookPaths = [];
-      _recentBooks = [];
       _bookProgress = {};
+      _lastReadTimestamps = {};
       _currentPage = 0;  // 重置当前页面索引
     });
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _mainPageController.dispose();
     _compactPageController.dispose();
     super.dispose();
+  }
+
+  // 修复文件路径问题
+  Future<void> _fixFilePaths() async {
+    // 检查所有书籍路径，确保它们是有效的
+    List<String> validPaths = [];
+    Map<String, double> validProgress = {};
+    Map<String, int> validTimestamps = {};
+    bool needsUpdate = false;
+    
+    for (var path in _bookPaths) {
+      final file = File(path);
+      if (file.existsSync()) {
+        // 检查文件是否在应用永久存储目录中
+        bool isInAppStorage = await FileStorageHelper.isFileInAppStorage(path);
+        
+        if (isInAppStorage) {
+          // 如果已经在永久存储目录中，直接使用规范化的路径
+          final normalizedPath = file.absolute.path;
+          validPaths.add(normalizedPath);
+          
+          // 更新进度信息
+          if (_bookProgress.containsKey(path)) {
+            validProgress[normalizedPath] = _bookProgress[path]!;
+          } else {
+            validProgress[normalizedPath] = 0.0;
+          }
+          
+          // 更新时间戳信息
+          if (_lastReadTimestamps.containsKey(path)) {
+            validTimestamps[normalizedPath] = _lastReadTimestamps[path]!;
+          } else {
+            validTimestamps[normalizedPath] = 0;
+          }
+          
+          if (normalizedPath != path) {
+            needsUpdate = true;
+          }
+        } else {
+          // 如果不在永久存储目录中，需要迁移
+          try {
+            // 获取文件名
+            final fileName = path.split('/').last;
+            
+            // 生成唯一文件名
+            final uniqueFileName = await FileStorageHelper.generateUniqueFileName(
+              fileName, 
+              validPaths // 使用已验证的路径列表
+            );
+            
+            // 复制到永久存储
+            final newPath = await FileStorageHelper.copyFileToAppStorage(
+              file,
+              customFileName: uniqueFileName
+            );
+            
+            validPaths.add(newPath);
+            
+            // 迁移进度信息
+            if (_bookProgress.containsKey(path)) {
+              validProgress[newPath] = _bookProgress[path]!;
+            } else {
+              validProgress[newPath] = 0.0;
+            }
+            
+            // 迁移时间戳信息
+            if (_lastReadTimestamps.containsKey(path)) {
+              validTimestamps[newPath] = _lastReadTimestamps[path]!;
+            } else {
+              validTimestamps[newPath] = 0;
+            }
+            
+            needsUpdate = true;
+            debugPrint('文件已迁移到应用存储: $path -> $newPath');
+          } catch (e) {
+            debugPrint('迁移文件失败: $path, 错误: $e');
+            // 如果迁移失败，仍然保留原路径
+            validPaths.add(path);
+            
+            // 保留原进度信息
+            if (_bookProgress.containsKey(path)) {
+              validProgress[path] = _bookProgress[path]!;
+            } else {
+              validProgress[path] = 0.0;
+            }
+            
+            // 保留原时间戳信息
+            if (_lastReadTimestamps.containsKey(path)) {
+              validTimestamps[path] = _lastReadTimestamps[path]!;
+            } else {
+              validTimestamps[path] = 0;
+            }
+          }
+        }
+      } else {
+        needsUpdate = true;
+        debugPrint('文件不存在，将从书架移除: $path');
+      }
+    }
+    
+    if (needsUpdate) {
+      setState(() {
+        _bookPaths = validPaths;
+        _bookProgress = validProgress;
+        _lastReadTimestamps = validTimestamps;
+      });
+      
+      await _savePDFPaths();
+      
+      // 重新加载所有数据
+      await _refreshData();
+    }
   }
 } 

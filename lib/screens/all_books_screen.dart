@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'pdf_viewer_screen.dart';
 import 'txt_viewer_screen.dart';
 import 'epub_viewer_screen.dart';
+import '../utils/file_storage_helper.dart';
 
 enum BookType {
   pdf,
@@ -45,16 +46,58 @@ class _AllBooksScreenState extends State<AllBooksScreen> {
       _bookPaths = List.from(widget.bookPaths!);
       _bookProgress = Map.from(widget.bookProgress!);
       _isLoading = false;
+      
+      // 添加延迟检查，确保文件存在
+      Future.delayed(const Duration(seconds: 1), () {
+        if (mounted) {
+          _verifyFilesExist();
+        }
+      });
     } else {
       // 否则从SharedPreferences加载
       _loadSavedBooks();
     }
   }
 
+  // 验证文件是否存在
+  void _verifyFilesExist() {
+    bool needsUpdate = false;
+    List<String> validPaths = [];
+    
+    for (var path in _bookPaths) {
+      final file = File(path);
+      if (file.existsSync()) {
+        validPaths.add(path);
+      } else {
+        needsUpdate = true;
+        debugPrint('文件不存在: $path');
+      }
+    }
+    
+    if (needsUpdate && mounted) {
+      setState(() {
+        _bookPaths = validPaths;
+      });
+    }
+  }
+
   Future<void> _loadSavedBooks() async {
     final prefs = await SharedPreferences.getInstance();
+    List<String> paths = prefs.getStringList('pdf_paths') ?? [];
+    List<String> validPaths = [];
+    
+    // 验证文件是否存在
+    for (var path in paths) {
+      final file = File(path);
+      if (file.existsSync()) {
+        validPaths.add(path);
+      } else {
+        debugPrint('文件不存在: $path');
+      }
+    }
+    
     setState(() {
-      _bookPaths = prefs.getStringList('pdf_paths') ?? [];
+      _bookPaths = validPaths;
       _isLoading = false;
       
       // 加载每本书的进度
@@ -103,15 +146,53 @@ class _AllBooksScreenState extends State<AllBooksScreen> {
       if (result != null && result.files.single.path != null) {
         final path = result.files.single.path!;
         
+        // 检查文件是否存在
+        final file = File(path);
+        if (!file.existsSync()) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('文件不存在: ${path.split('/').last}')),
+          );
+          return;
+        }
+        
+        // 获取文件名
+        final fileName = path.split('/').last;
+        
+        // 生成唯一文件名
+        final uniqueFileName = await FileStorageHelper.generateUniqueFileName(
+          fileName, 
+          _bookPaths
+        );
+        
+        // 复制文件到应用永久存储目录
+        String finalPath;
+        try {
+          finalPath = await FileStorageHelper.copyFileToAppStorage(
+            file,
+            customFileName: uniqueFileName
+          );
+          
+          if (uniqueFileName != fileName) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('已添加为: $uniqueFileName')),
+            );
+          }
+        } catch (e) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('复制文件失败: $e')),
+          );
+          return;
+        }
+        
         setState(() {
-          if (!_bookPaths.contains(path)) {  // 确保不重复添加
-            _bookPaths.add(path);
-            _bookProgress[path] = 0.0;       // 初始化进度
+          if (!_bookPaths.contains(finalPath)) {  // 确保不重复添加
+            _bookPaths.add(finalPath);
+            _bookProgress[finalPath] = 0.0;       // 初始化进度
           }
         });
         
         await _saveBookPaths();
-        await _saveBookProgress(path, 0.0);
+        await _saveBookProgress(finalPath, 0.0);
       }
     } catch (e) {
       debugPrint('Error picking file: $e');
@@ -119,6 +200,15 @@ class _AllBooksScreenState extends State<AllBooksScreen> {
   }
 
   void _openBook(String path) async {
+    // 检查文件是否存在
+    final file = File(path);
+    if (!file.existsSync()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('文件不存在: ${path.split('/').last}')),
+      );
+      return;
+    }
+    
     final bookType = _getBookType(path);
     Widget viewer;
     
@@ -160,6 +250,11 @@ class _AllBooksScreenState extends State<AllBooksScreen> {
           builder: (context) => viewer,
         ),
       );
+      
+      // 从阅读器返回后刷新数据
+      if (mounted) {
+        await _loadSavedBooks();
+      }
     }
   }
 
