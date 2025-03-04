@@ -10,13 +10,18 @@ import '../widgets/book_card.dart';
 import 'all_books_screen.dart';
 import '../services/ai_service.dart';
 import 'character_relationship_screen.dart';
+import 'enhanced_character_relationship_screen.dart';
 import 'package:flutter_pdf_text/flutter_pdf_text.dart';
 import '../services/mobi_processing_service.dart';
 import '../painters/progress_painter.dart';
 import '../widgets/reading_history_chart.dart';
 import 'package:flutter/rendering.dart';
 import '../utils/file_storage_helper.dart';
-
+import 'package:archive/archive.dart';
+import 'package:xml/xml.dart';
+import 'package:html/parser.dart' as htmlparser;
+import 'dart:convert';
+import 'package:path/path.dart' as path;
 
 enum BookType {
   pdf,
@@ -369,6 +374,12 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
           },
         );
         break;
+      case BookType.mobi:
+        // 对于mobi文件，我们应该先转换为epub
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('MOBI文件需要先转换为EPUB格式')),
+        );
+        return;
       default:
         viewer = const Center(child: Text('不支持的文件格式'));
     }
@@ -717,57 +728,258 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
       return;
     }
     
-    // 选择第一本书进行分析
-    final currentBook = _bookPaths[0];
-    final fileName = currentBook.split('/').last;
+    // 获取最后阅读的书籍
+    String? lastReadBook;
+    int latestTimestamp = 0;
+    
+    for (var path in _bookPaths) {
+      final timestamp = _lastReadTimestamps[path] ?? 0;
+      if (timestamp > latestTimestamp && File(path).existsSync()) {
+        latestTimestamp = timestamp;
+        lastReadBook = path;
+      }
+    }
+    
+    // 如果没有最后阅读的书籍记录，则使用第一本书
+    if (lastReadBook == null && _bookPaths.isNotEmpty) {
+      for (var path in _bookPaths) {
+        if (File(path).existsSync()) {
+          lastReadBook = path;
+          break;
+        }
+      }
+    }
+    
+    if (lastReadBook == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('无法找到有效的书籍')),
+      );
+      return;
+    }
+    
+    final fileName = lastReadBook.split('/').last;
+    final progress = _bookProgress[lastReadBook] ?? 0.0;
     
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: Text('分析 $fileName 的人物关系'),
-        content: const SizedBox(
-          height: 100,
-          child: Center(child: CircularProgressIndicator()),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text('正在分析当前阅读位置 (${(progress * 100).toInt()}%)...'),
+          ],
         ),
       ),
     );
     
     try {
       String content;
-      final fileExtension = currentBook.split('.').last.toLowerCase();
+      final fileExtension = lastReadBook.split('.').last.toLowerCase();
       
       switch (fileExtension) {
         case 'txt':
-          content = await File(currentBook).readAsString();
+          content = await File(lastReadBook).readAsString();
           break;
         case 'pdf':
-          final pdfDoc = await PDFDoc.fromPath(currentBook);
+          final pdfDoc = await PDFDoc.fromPath(lastReadBook);
           content = await pdfDoc.text;
           break;
         case 'epub':
-          // 如果需要添加epub支持
-          throw Exception('暂不支持epub格式的人物关系分析');
+          // 添加对EPUB格式的支持
+          try {
+            // 使用Archive库直接解析EPUB文件（EPUB本质上是一个ZIP文件）
+            final bytes = await File(lastReadBook).readAsBytes();
+            final archive = ZipDecoder().decodeBytes(bytes);
+            
+            // 提取所有HTML文件
+            List<String> htmlContents = [];
+            for (final file in archive.files) {
+              if (file.name.toLowerCase().endsWith('.html') || 
+                  file.name.toLowerCase().endsWith('.xhtml')) {
+                try {
+                  final content = utf8.decode(file.content);
+                  htmlContents.add(content);
+                } catch (e) {
+                  // 如果UTF-8解码失败，尝试使用Latin1
+                  try {
+                    final content = latin1.decode(file.content);
+                    htmlContents.add(content);
+                  } catch (e) {
+                    // 忽略无法解码的文件
+                    print('无法解码文件: ${file.name}');
+                  }
+                }
+              }
+            }
+            
+            // 根据阅读进度确定要分析的内容
+            int filesToAnalyze = (htmlContents.length * progress).ceil();
+            if (filesToAnalyze < 1) filesToAnalyze = 1;
+            if (filesToAnalyze > htmlContents.length) filesToAnalyze = htmlContents.length;
+            
+            // 提取文本内容
+            StringBuffer contentBuffer = StringBuffer();
+            for (int i = 0; i < filesToAnalyze; i++) {
+              final htmlContent = htmlContents[i];
+              final document = htmlparser.parse(htmlContent);
+              final text = document.body?.text ?? '';
+              contentBuffer.writeln(text);
+              contentBuffer.writeln(); // 添加空行分隔章节
+            }
+            
+            content = contentBuffer.toString();
+          } catch (e) {
+            throw Exception('解析EPUB文件失败: $e');
+          }
+          break;
         case 'mobi':
-          // 如果需要添加mobi支持
-          throw Exception('暂不支持mobi格式的人物关系分析');
+          // 添加对MOBI格式的支持
+          try {
+            // 使用现有的MobiProcessingService将MOBI转换为EPUB
+            final service = MobiProcessingService();
+            
+            // 显示转换进度对话框
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (context) => AlertDialog(
+                title: const Text('转换MOBI文件'),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 16),
+                    const Text('正在将MOBI转换为EPUB以进行分析...'),
+                  ],
+                ),
+              ),
+            );
+            
+            // 上传MOBI文件并获取EPUB URL
+            final epubUrl = await service.uploadMobiFile(File(lastReadBook));
+            
+            // 创建临时文件保存EPUB
+            final tempDir = Directory.systemTemp;
+            final tempEpubPath = '${tempDir.path}/temp_${DateTime.now().millisecondsSinceEpoch}.epub';
+            
+            // 下载EPUB文件
+            await service.downloadProcessedFile(epubUrl, tempEpubPath);
+            
+            // 关闭转换对话框
+            Navigator.pop(context);
+            
+            // 重新显示分析对话框
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (context) => AlertDialog(
+                title: Text('分析 $fileName 的人物关系'),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 16),
+                    Text('正在分析当前阅读位置 (${(progress * 100).toInt()}%)...'),
+                  ],
+                ),
+              ),
+            );
+            
+            // 使用与EPUB相同的方法解析内容
+            final bytes = await File(tempEpubPath).readAsBytes();
+            final archive = ZipDecoder().decodeBytes(bytes);
+            
+            // 提取所有HTML文件
+            List<String> htmlContents = [];
+            for (final file in archive.files) {
+              if (file.name.toLowerCase().endsWith('.html') || 
+                  file.name.toLowerCase().endsWith('.xhtml')) {
+                try {
+                  final content = utf8.decode(file.content);
+                  htmlContents.add(content);
+                } catch (e) {
+                  // 如果UTF-8解码失败，尝试使用Latin1
+                  try {
+                    final content = latin1.decode(file.content);
+                    htmlContents.add(content);
+                  } catch (e) {
+                    // 忽略无法解码的文件
+                    print('无法解码文件: ${file.name}');
+                  }
+                }
+              }
+            }
+            
+            // 根据阅读进度确定要分析的内容
+            int filesToAnalyze = (htmlContents.length * progress).ceil();
+            if (filesToAnalyze < 1) filesToAnalyze = 1;
+            if (filesToAnalyze > htmlContents.length) filesToAnalyze = htmlContents.length;
+            
+            // 提取文本内容
+            StringBuffer contentBuffer = StringBuffer();
+            for (int i = 0; i < filesToAnalyze; i++) {
+              final htmlContent = htmlContents[i];
+              final document = htmlparser.parse(htmlContent);
+              final text = document.body?.text ?? '';
+              contentBuffer.writeln(text);
+              contentBuffer.writeln(); // 添加空行分隔章节
+            }
+            
+            content = contentBuffer.toString();
+            
+            // 删除临时文件
+            try {
+              File(tempEpubPath).deleteSync();
+            } catch (e) {
+              print('删除临时文件失败: $e');
+            }
+          } catch (e) {
+            // 确保关闭任何打开的对话框
+            Navigator.pop(context);
+            throw Exception('解析MOBI文件失败: $e');
+          }
+          break;
         default:
           throw Exception('不支持的文件格式: $fileExtension');
       }
 
-      if (content.length > 4000) {
-        content = content.substring(0, 4000);
+      // 根据阅读进度截取内容
+      if (content.isNotEmpty) {
+        // 如果进度为0，取前4000字符
+        // 如果进度不为0，取到当前进度位置的内容
+        int endPosition = progress > 0 
+            ? (content.length * progress).toInt() 
+            : 4000;
+            
+        // 确保不超出文本长度
+        endPosition = endPosition.clamp(0, content.length);
+        
+        // 如果内容太长，只取当前位置附近的一部分
+        if (endPosition > 4000) {
+          // 取当前位置前后的内容
+          int startPosition = endPosition - 4000;
+          if (startPosition < 0) startPosition = 0;
+          content = content.substring(startPosition, endPosition);
+        } else {
+          content = content.substring(0, endPosition);
+        }
       }
 
-      final result = await AIService.analyzeCharacterRelationships(content);
+      // 使用新的AI服务方法
+      final result = await AIService.analyzeBookAndCharacters(content, progress: progress);
       
       if (mounted) {
         Navigator.pop(context);  // 关闭加载对话框
+        
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => CharacterRelationshipScreen(
-              relationshipData: result,
+            builder: (context) => EnhancedCharacterRelationshipScreen(
+              analysisData: result,
               bookTitle: fileName,
             ),
           ),
