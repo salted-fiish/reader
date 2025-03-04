@@ -1,55 +1,179 @@
 import 'package:flutter/material.dart';
 
-class EnhancedCharacterRelationshipScreen extends StatelessWidget {
+class EnhancedCharacterRelationshipScreen extends StatefulWidget {
   final Map<String, dynamic> analysisData;
   final String bookTitle;
+  final Function()? onRefresh;
+  final DateTime? analysisTime;
 
   const EnhancedCharacterRelationshipScreen({
     super.key,
     required this.analysisData,
     required this.bookTitle,
+    this.onRefresh,
+    this.analysisTime,
   });
 
   @override
+  State<EnhancedCharacterRelationshipScreen> createState() => _EnhancedCharacterRelationshipScreenState();
+}
+
+class _EnhancedCharacterRelationshipScreenState extends State<EnhancedCharacterRelationshipScreen> {
+  bool _showMenu = true;
+
+  @override
   Widget build(BuildContext context) {
-    final isFamousWork = analysisData['is_famous_work'] as bool;
-    final bookInfo = analysisData['book_info'] as Map<String, dynamic>?;
-    final characters = analysisData['characters'] as List;
-    final relationships = analysisData['relationships'] as List;
+    final isFamousWork = widget.analysisData['is_famous_work'] as bool;
+    final bookInfo = widget.analysisData['book_info'] as Map<String, dynamic>?;
+    final characters = widget.analysisData['characters'] as List;
+    final relationships = widget.analysisData['relationships'] as List;
+
+    String analysisTimeText = '';
+    if (widget.analysisTime != null) {
+      final now = DateTime.now();
+      final difference = now.difference(widget.analysisTime!);
+      
+      if (difference.inMinutes < 1) {
+        analysisTimeText = '刚刚分析';
+      } else if (difference.inHours < 1) {
+        analysisTimeText = '${difference.inMinutes}分钟前分析';
+      } else if (difference.inDays < 1) {
+        analysisTimeText = '${difference.inHours}小时前分析';
+      } else if (difference.inDays < 30) {
+        analysisTimeText = '${difference.inDays}天前分析';
+      } else {
+        analysisTimeText = '${widget.analysisTime!.year}-${widget.analysisTime!.month}-${widget.analysisTime!.day} 分析';
+      }
+    }
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('$bookTitle - 人物关系'),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      body: GestureDetector(
+        onTap: () {
+          setState(() {
+            _showMenu = !_showMenu;
+          });
+        },
+        child: Stack(
           children: [
-            // 书籍信息卡片
-            if (isFamousWork && bookInfo != null) _buildBookInfoCard(bookInfo),
-            
-            const SizedBox(height: 24),
-            const Text(
-              '主要人物：',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+            SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 40),
+                    
+                    if (widget.analysisTime != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.access_time, size: 16, color: Colors.grey),
+                            const SizedBox(width: 4),
+                            Text(
+                              analysisTimeText,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    
+                    if (isFamousWork && bookInfo != null) _buildBookInfoCard(bookInfo),
+                    
+                    const SizedBox(height: 24),
+                    const Text(
+                      '主要人物：',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ...characters.map((character) => _buildCharacterCard(character)),
+                    
+                    const SizedBox(height: 24),
+                    const Text(
+                      '人物关系：',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ...relationships.map((relation) => _buildRelationshipCard(relation)),
+                    
+                    SizedBox(height: MediaQuery.of(context).padding.bottom + 80),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: 12),
-            ...characters.map((character) => _buildCharacterCard(character)),
             
-            const SizedBox(height: 24),
-            const Text(
-              '人物关系：',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+            if (_showMenu)
+              Positioned(
+                top: MediaQuery.of(context).padding.top + 10,
+                left: 20,
+                right: 20,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2C2C2C).withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.arrow_back, color: Colors.white),
+                          onPressed: () => Navigator.of(context).pop(),
+                          tooltip: '返回',
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            '${widget.bookTitle} - 人物关系',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            ...relationships.map((relation) => _buildRelationshipCard(relation)),
+              
+            if (_showMenu)
+              Positioned(
+                bottom: MediaQuery.of(context).padding.bottom + 10,
+                left: 20,
+                right: 20,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2C2C2C).withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.refresh, color: Colors.white),
+                          onPressed: widget.onRefresh,
+                          tooltip: '刷新人物关系',
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),

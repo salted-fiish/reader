@@ -50,6 +50,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
   );
   Map<String, double> _bookProgress = {};
   Map<String, int> _lastReadTimestamps = {}; // 添加最后阅读时间戳
+  Map<String, Map<String, dynamic>> _characterAnalysisCache = {}; // 添加人物关系分析缓存
   int _currentPage = 0;
 
   @override
@@ -58,9 +59,11 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
     _bookPaths = [];      // 确保初始为空
     _bookProgress = {};   // 确保初始为空
     _lastReadTimestamps = {}; // 确保初始为空
+    _characterAnalysisCache = {}; // 确保初始为空
     _loadSavedPDFs();
     _loadBookProgress();
     _loadLastReadTimestamps(); // 加载最后阅读时间戳
+    _loadCharacterAnalysisCache(); // 加载人物关系分析缓存
     
     // 添加定期刷新机制
     Future.delayed(const Duration(milliseconds: 500), () {
@@ -719,6 +722,61 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
     );
   }
 
+  // 加载人物关系分析缓存
+  Future<void> _loadCharacterAnalysisCache() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _characterAnalysisCache.clear(); // 清除旧数据
+      
+      // 加载所有书籍的人物关系分析缓存
+      for (var path in _bookPaths) {
+        final cacheString = prefs.getString('character_analysis_$path');
+        if (cacheString != null) {
+          try {
+            _characterAnalysisCache[path] = jsonDecode(cacheString);
+            print('已加载人物关系缓存: $path');
+          } catch (e) {
+            print('解析人物关系缓存失败: $path, 错误: $e');
+          }
+        }
+      }
+    });
+  }
+  
+  // 保存人物关系分析缓存
+  Future<void> _saveCharacterAnalysisCache(String path, Map<String, dynamic> analysisData) async {
+    final prefs = await SharedPreferences.getInstance();
+    try {
+      // 添加分析时间
+      final cacheData = {
+        'analysis_data': analysisData,
+        'analysis_time': DateTime.now().millisecondsSinceEpoch,
+      };
+      
+      final cacheString = jsonEncode(cacheData);
+      await prefs.setString('character_analysis_$path', cacheString);
+      if (mounted) {
+        setState(() {
+          _characterAnalysisCache[path] = cacheData;
+        });
+      }
+      print('已保存人物关系缓存: $path');
+    } catch (e) {
+      print('保存人物关系缓存失败: $path, 错误: $e');
+    }
+  }
+  
+  // 清除人物关系分析缓存
+  Future<void> _clearCharacterAnalysisCache(String path) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('character_analysis_$path');
+    if (mounted) {
+      setState(() {
+        _characterAnalysisCache.remove(path);
+      });
+    }
+  }
+
   // 修改人物关系分析方法
   void _showCharacterRelationship(BuildContext context) async {
     if (_bookPaths.isEmpty) {
@@ -757,8 +815,64 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
       return;
     }
     
+    // 检查是否有缓存的分析结果
+    final currentProgress = _bookProgress[lastReadBook] ?? 0.0;
+    final cachedData = _characterAnalysisCache[lastReadBook];
     final fileName = lastReadBook.split('/').last;
-    final progress = _bookProgress[lastReadBook] ?? 0.0;
+    
+    // 如果有缓存的分析结果，直接显示
+    if (cachedData != null) {
+      final analysisData = cachedData['analysis_data'];
+      final analysisTimeMs = cachedData['analysis_time'] as int?;
+      final analysisTime = analysisTimeMs != null 
+          ? DateTime.fromMillisecondsSinceEpoch(analysisTimeMs) 
+          : null;
+      
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => EnhancedCharacterRelationshipScreen(
+            analysisData: analysisData,
+            bookTitle: fileName,
+            onRefresh: () => _analyzeAndShowCharacterRelationship(context, lastReadBook!, forceRefresh: true),
+            analysisTime: analysisTime,
+          ),
+        ),
+      );
+      return;
+    }
+    
+    // 如果没有缓存，进行分析
+    _analyzeAndShowCharacterRelationship(context, lastReadBook);
+  }
+  
+  // 封装分析和显示人物关系的逻辑为一个可重用的函数
+  Future<void> _analyzeAndShowCharacterRelationship(BuildContext context, String bookPath, {bool forceRefresh = false}) async {
+    final fileName = bookPath.split('/').last;
+    final progress = _bookProgress[bookPath] ?? 0.0;
+    
+    // 如果不是强制刷新，检查是否有缓存
+    if (!forceRefresh && _characterAnalysisCache.containsKey(bookPath)) {
+      final cachedData = _characterAnalysisCache[bookPath]!;
+      final analysisData = cachedData['analysis_data'];
+      final analysisTimeMs = cachedData['analysis_time'] as int?;
+      final analysisTime = analysisTimeMs != null 
+          ? DateTime.fromMillisecondsSinceEpoch(analysisTimeMs) 
+          : null;
+      
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => EnhancedCharacterRelationshipScreen(
+            analysisData: analysisData,
+            bookTitle: fileName,
+            onRefresh: () => _analyzeAndShowCharacterRelationship(context, bookPath, forceRefresh: true),
+            analysisTime: analysisTime,
+          ),
+        ),
+      );
+      return;
+    }
     
     showDialog(
       context: context,
@@ -778,21 +892,21 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
     
     try {
       String content;
-      final fileExtension = lastReadBook.split('.').last.toLowerCase();
+      final fileExtension = bookPath.split('.').last.toLowerCase();
       
       switch (fileExtension) {
         case 'txt':
-          content = await File(lastReadBook).readAsString();
+          content = await File(bookPath).readAsString();
           break;
         case 'pdf':
-          final pdfDoc = await PDFDoc.fromPath(lastReadBook);
+          final pdfDoc = await PDFDoc.fromPath(bookPath);
           content = await pdfDoc.text;
           break;
         case 'epub':
           // 添加对EPUB格式的支持
           try {
             // 使用Archive库直接解析EPUB文件（EPUB本质上是一个ZIP文件）
-            final bytes = await File(lastReadBook).readAsBytes();
+            final bytes = await File(bookPath).readAsBytes();
             final archive = ZipDecoder().decodeBytes(bytes);
             
             // 提取所有HTML文件
@@ -837,112 +951,14 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
           }
           break;
         case 'mobi':
-          // 添加对MOBI格式的支持
-          try {
-            // 使用现有的MobiProcessingService将MOBI转换为EPUB
-            final service = MobiProcessingService();
-            
-            // 显示转换进度对话框
-            showDialog(
-              context: context,
-              barrierDismissible: false,
-              builder: (context) => AlertDialog(
-                title: const Text('转换MOBI文件'),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const CircularProgressIndicator(),
-                    const SizedBox(height: 16),
-                    const Text('正在将MOBI转换为EPUB以进行分析...'),
-                  ],
-                ),
-              ),
-            );
-            
-            // 上传MOBI文件并获取EPUB URL
-            final epubUrl = await service.uploadMobiFile(File(lastReadBook));
-            
-            // 创建临时文件保存EPUB
-            final tempDir = Directory.systemTemp;
-            final tempEpubPath = '${tempDir.path}/temp_${DateTime.now().millisecondsSinceEpoch}.epub';
-            
-            // 下载EPUB文件
-            await service.downloadProcessedFile(epubUrl, tempEpubPath);
-            
-            // 关闭转换对话框
-            Navigator.pop(context);
-            
-            // 重新显示分析对话框
-            showDialog(
-              context: context,
-              barrierDismissible: false,
-              builder: (context) => AlertDialog(
-                title: Text('分析 $fileName 的人物关系'),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const CircularProgressIndicator(),
-                    const SizedBox(height: 16),
-                    Text('正在分析当前阅读位置 (${(progress * 100).toInt()}%)...'),
-                  ],
-                ),
-              ),
-            );
-            
-            // 使用与EPUB相同的方法解析内容
-            final bytes = await File(tempEpubPath).readAsBytes();
-            final archive = ZipDecoder().decodeBytes(bytes);
-            
-            // 提取所有HTML文件
-            List<String> htmlContents = [];
-            for (final file in archive.files) {
-              if (file.name.toLowerCase().endsWith('.html') || 
-                  file.name.toLowerCase().endsWith('.xhtml')) {
-                try {
-                  final content = utf8.decode(file.content);
-                  htmlContents.add(content);
-                } catch (e) {
-                  // 如果UTF-8解码失败，尝试使用Latin1
-                  try {
-                    final content = latin1.decode(file.content);
-                    htmlContents.add(content);
-                  } catch (e) {
-                    // 忽略无法解码的文件
-                    print('无法解码文件: ${file.name}');
-                  }
-                }
-              }
-            }
-            
-            // 根据阅读进度确定要分析的内容
-            int filesToAnalyze = (htmlContents.length * progress).ceil();
-            if (filesToAnalyze < 1) filesToAnalyze = 1;
-            if (filesToAnalyze > htmlContents.length) filesToAnalyze = htmlContents.length;
-            
-            // 提取文本内容
-            StringBuffer contentBuffer = StringBuffer();
-            for (int i = 0; i < filesToAnalyze; i++) {
-              final htmlContent = htmlContents[i];
-              final document = htmlparser.parse(htmlContent);
-              final text = document.body?.text ?? '';
-              contentBuffer.writeln(text);
-              contentBuffer.writeln(); // 添加空行分隔章节
-            }
-            
-            content = contentBuffer.toString();
-            
-            // 删除临时文件
-            try {
-              File(tempEpubPath).deleteSync();
-            } catch (e) {
-              print('删除临时文件失败: $e');
-            }
-          } catch (e) {
-            // 确保关闭任何打开的对话框
-            Navigator.pop(context);
-            throw Exception('解析MOBI文件失败: $e');
+          // MOBI文件需要先转换为EPUB
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('MOBI文件需要先转换为EPUB格式')),
+          );
+          if (mounted) {
+            Navigator.pop(context); // 关闭加载对话框
           }
-          break;
+          return;
         default:
           throw Exception('不支持的文件格式: $fileExtension');
       }
@@ -972,6 +988,12 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
       // 使用新的AI服务方法
       final result = await AIService.analyzeBookAndCharacters(content, progress: progress);
       
+      // 保存分析结果到缓存
+      await _saveCharacterAnalysisCache(bookPath, result);
+      
+      // 获取当前时间作为分析时间
+      final analysisTime = DateTime.now();
+      
       if (mounted) {
         Navigator.pop(context);  // 关闭加载对话框
         
@@ -981,6 +1003,8 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
             builder: (context) => EnhancedCharacterRelationshipScreen(
               analysisData: result,
               bookTitle: fileName,
+              onRefresh: () => _analyzeAndShowCharacterRelationship(context, bookPath, forceRefresh: true),
+              analysisTime: analysisTime,
             ),
           ),
         );
@@ -1151,15 +1175,17 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
   Future<void> _clearAllData() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('pdf_paths');
-    // 清除所有进度数据和最后阅读时间戳
+    // 清除所有进度数据、最后阅读时间戳和人物关系分析缓存
     for (var path in _bookPaths) {
       await prefs.remove('progress_$path');
       await prefs.remove('last_read_$path');
+      await prefs.remove('character_analysis_$path');
     }
     setState(() {
       _bookPaths = [];
       _bookProgress = {};
       _lastReadTimestamps = {};
+      _characterAnalysisCache = {};
       _currentPage = 0;  // 重置当前页面索引
     });
   }
@@ -1178,6 +1204,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
     List<String> validPaths = [];
     Map<String, double> validProgress = {};
     Map<String, int> validTimestamps = {};
+    Map<String, Map<String, dynamic>> validAnalysisCache = {};
     bool needsUpdate = false;
     
     for (var path in _bookPaths) {
@@ -1203,6 +1230,11 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
             validTimestamps[normalizedPath] = _lastReadTimestamps[path]!;
           } else {
             validTimestamps[normalizedPath] = 0;
+          }
+          
+          // 更新人物关系分析缓存
+          if (_characterAnalysisCache.containsKey(path)) {
+            validAnalysisCache[normalizedPath] = _characterAnalysisCache[path]!;
           }
           
           if (normalizedPath != path) {
@@ -1242,6 +1274,11 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
               validTimestamps[newPath] = 0;
             }
             
+            // 迁移人物关系分析缓存
+            if (_characterAnalysisCache.containsKey(path)) {
+              validAnalysisCache[newPath] = _characterAnalysisCache[path]!;
+            }
+            
             needsUpdate = true;
             debugPrint('文件已迁移到应用存储: $path -> $newPath');
           } catch (e) {
@@ -1262,6 +1299,11 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
             } else {
               validTimestamps[path] = 0;
             }
+            
+            // 保留原人物关系分析缓存
+            if (_characterAnalysisCache.containsKey(path)) {
+              validAnalysisCache[path] = _characterAnalysisCache[path]!;
+            }
           }
         }
       } else {
@@ -1275,6 +1317,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
         _bookPaths = validPaths;
         _bookProgress = validProgress;
         _lastReadTimestamps = validTimestamps;
+        _characterAnalysisCache = validAnalysisCache;
       });
       
       await _savePDFPaths();
