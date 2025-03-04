@@ -629,10 +629,10 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
 
   Widget _buildFunctionButtons() {
     final buttonItems = [
-      {'icon': Icons.people_outline, 'title': '人物关系', 'onTap': () => _showCharacterRelationship(context)},
-      {'icon': Icons.summarize, 'title': '概括上文', 'onTap': () {}},
-      {'icon': Icons.download, 'title': '本地导入', 'onTap': _pickLocalBook},
-      {'icon': Icons.pending, 'title': '未竟事宜', 'onTap': () {
+      {'title': '人物关系', 'onTap': () => _showCharacterRelationship(context)},
+      {'title': '概括上文', 'onTap': () {}},
+      {'title': '本地导入', 'onTap': _pickLocalBook},
+      {'title': '未竟事宜', 'onTap': () {
         // 这里可以添加未竟事宜的处理逻辑
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('此功能尚未实现')),
@@ -667,33 +667,15 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
             child: InkWell(
               borderRadius: BorderRadius.circular(16),
               onTap: buttonItems[index]['onTap'] as Function(),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF2D3A3A).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(
-                        buttonItems[index]['icon'] as IconData,
-                        color: const Color(0xFF2D3A3A),
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      buttonItems[index]['title'] as String,
-                      style: const TextStyle(
-                        color: Color(0xFF2D3A3A),
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
+              child: Center(
+                child: Text(
+                  buttonItems[index]['title'] as String,
+                  style: const TextStyle(
+                    color: Color(0xFF2D3A3A),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
               ),
             ),
