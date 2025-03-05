@@ -607,7 +607,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
                       Text(
                         '今日阅读',
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: 18,
                           fontWeight: FontWeight.bold,
                           color: Colors.grey[800],
                         ),
@@ -642,8 +642,8 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
                 
                 // 功能按钮区域
                 Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  height: screenHeight * 0.20,
+                  margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
+                  height: screenHeight * 0.175,
                   child: _buildFunctionButtons(),
                 ),
                 
@@ -1046,39 +1046,41 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
         children: [
           // 卡片标题和整理按钮
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   '我的书桌',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Colors.grey[800],
                   ),
                 ),
-                TextButton.icon(
+                TextButton(
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(
-                        builder: (context) => AllBooksScreen(),
-                      ),
+                      MaterialPageRoute(builder: (context) => const AllBooksScreen()),
                     ).then((_) {
                       if (mounted) {
                         _refreshData();
                       }
                     });
                   },
-                  icon: const Icon(Icons.sort, size: 18),
-                  label: const Text('整理书桌'),
                   style: TextButton.styleFrom(
-                    foregroundColor: const Color(0xFF2D3A3A),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    backgroundColor: Colors.grey[800], // 设置背景颜色
+                    foregroundColor: Colors.white, // 设置文本颜色
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(12), // 圆角按钮
                     ),
+                  ),
+                  child: const Text(
+                    '整理书桌',
+                    style: TextStyle(fontSize: 16),
+                    textAlign: TextAlign.center,
                   ),
                 ),
               ],
@@ -1088,41 +1090,41 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
           // 书籍列表
           Expanded(
             child: _bookPaths.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.menu_book,
-                          size: 48,
-                          color: Colors.grey[400],
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.menu_book,
+                        size: 48,
+                        color: Colors.grey[400],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        '书桌上还没有书籍',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey[600],
                         ),
-                        const SizedBox(height: 16),
-                        Text(
-                          '书桌上还没有书籍',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey[600],
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton.icon(
+                        onPressed: _pickLocalBook,
+                        icon: const Icon(Icons.add),
+                        label: const Text('添加书籍'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF2D3A3A),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
                           ),
                         ),
-                        const SizedBox(height: 16),
-                        ElevatedButton.icon(
-                          onPressed: _pickLocalBook,
-                          icon: const Icon(Icons.add),
-                          label: const Text('添加书籍'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF2D3A3A),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : _buildBooksGrid(),
+                      ),
+                    ],
+                  ),
+                )
+              : _buildBooksGrid(),
           ),
         ],
       ),
@@ -1132,7 +1134,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
   // 修改：书籍列表显示
   Widget _buildBooksGrid() {
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
       itemCount: _bookPaths.length,
       itemBuilder: (context, index) {
         final path = _bookPaths[index];
@@ -1175,15 +1177,15 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
                 children: [
                   // 文件类型图标
                   Container(
-                    width: 48,
-                    height: 48,
+                    width: 30,
+                    height: 30,
                     decoration: BoxDecoration(
                       color: Colors.grey[200],
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
                       typeIcon,
-                      size: 28,
+                      size: 20,
                       color: const Color(0xFF2D3A3A),
                     ),
                   ),
@@ -1196,7 +1198,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
                         Text(
                           fileName,
                           style: const TextStyle(
-                            fontSize: 16,
+                            fontSize: 14,
                             fontWeight: FontWeight.bold,
                           ),
                           maxLines: 1,
@@ -1210,14 +1212,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
                           valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF2D3A3A)),
                           borderRadius: BorderRadius.circular(2),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '阅读进度: ${(progress * 100).toInt()}%',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[600],
-                          ),
-                        ),
+                      
                       ],
                     ),
                   ),
