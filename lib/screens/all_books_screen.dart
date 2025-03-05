@@ -294,165 +294,183 @@ class _AllBooksScreenState extends State<AllBooksScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (_bookPaths.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text(
-              '书架是空的',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey,
-              ),
-            ),
-            const SizedBox(height: 20),
-            Container(
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: Colors.black,
-                  width: 1.5,
-                ),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(16),
-                  onTap: _pickLocalBook,
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 12,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.download,
-                          color: Colors.black,
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          '点击导入书籍',
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
       );
     }
 
-    return Column(
-      children: [
-        Expanded(
-          child: GridView.builder(
-            padding: const EdgeInsets.all(16),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              childAspectRatio: 0.7,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-            ),
-            itemCount: _bookPaths.length,
-            itemBuilder: (context, index) {
-              final file = File(_bookPaths[index]);
-              final fileName = file.path.split('/').last;
-              
-              return GestureDetector(
-                onTap: () => _openBook(_bookPaths[index]),
-                onLongPress: () => _handleDeleteBook(index, fileName),
-                child: Column(
-                  children: [
-                    // 书籍封面
-                    Expanded(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(8),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: const Text('我的书桌', style: TextStyle(color: Color(0xFF2D3A3A))),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Color(0xFF2D3A3A)),
+      ),
+      body: _bookPaths.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    '书桌是空的',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: Colors.black,
+                        width: 1.5,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: _pickLocalBook,
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.download,
+                                color: Colors.black,
+                              ),
+                              SizedBox(width: 8),
+                              Text(
+                                '点击导入书籍',
+                                style: TextStyle(
+                                  color: Colors.black,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        child: Stack(
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : Container(
+              margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: _bookPaths.length,
+                itemBuilder: (context, index) {
+                  final file = File(_bookPaths[index]);
+                  final fileName = file.path.split('/').last;
+                  final progress = _bookProgress[_bookPaths[index]] ?? 0.0;
+                  final bookType = _getBookType(_bookPaths[index]);
+                  
+                  // 获取文件类型对应的图标
+                  IconData typeIcon;
+                  switch (bookType) {
+                    case BookType.pdf:
+                      typeIcon = Icons.picture_as_pdf;
+                      break;
+                    case BookType.txt:
+                      typeIcon = Icons.text_snippet;
+                      break;
+                    case BookType.epub:
+                      typeIcon = Icons.menu_book;
+                      break;
+                    case BookType.mobi:
+                      typeIcon = Icons.book_online;
+                      break;
+                    default:
+                      typeIcon = Icons.description;
+                  }
+                  
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () => _openBook(_bookPaths[index]),
+                      onLongPress: () => _handleDeleteBook(index, fileName),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Row(
                           children: [
-                            Center(
+                            // 文件类型图标
+                            Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[200],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
                               child: Icon(
-                                Icons.book,
-                                size: 40,
-                                color: Colors.grey[700],
+                                typeIcon,
+                                size: 28,
+                                color: const Color(0xFF2D3A3A),
                               ),
                             ),
-                            // 进度条
-                            Positioned(
-                              bottom: 0,
-                              left: 0,
-                              right: 0,
-                              child: Container(
-                                height: 4,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[200],
-                                  borderRadius: const BorderRadius.only(
-                                    bottomLeft: Radius.circular(8),
-                                    bottomRight: Radius.circular(8),
+                            const SizedBox(width: 16),
+                            // 书籍信息
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    fileName,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                ),
-                                child: FractionallySizedBox(
-                                  alignment: Alignment.centerLeft,
-                                  widthFactor: _bookProgress[_bookPaths[index]] ?? 0.0,
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      color: Colors.black,
-                                      borderRadius: BorderRadius.circular(2),
+                                  const SizedBox(height: 8),
+                                  // 进度条
+                                  LinearProgressIndicator(
+                                    value: progress,
+                                    backgroundColor: Colors.grey[300],
+                                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF2D3A3A)),
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '阅读进度: ${(progress * 100).toInt()}%',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[600],
                                     ),
                                   ),
-                                ),
+                                ],
                               ),
+                            ),
+                            // 删除按钮
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline),
+                              onPressed: () => _handleDeleteBook(index, fileName),
                             ),
                           ],
                         ),
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    // 书名
-                    Text(
-                      fileName,
-                      style: const TextStyle(
-                        fontSize: 12,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.only(bottom: 16),
-          child: FloatingActionButton(
-            onPressed: _pickLocalBook,
-            child: const Icon(Icons.add),
-          ),
-        ),
-      ],
+                  );
+                },
+              ),
+            ),
     );
   }
 } 

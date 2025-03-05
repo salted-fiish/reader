@@ -613,13 +613,28 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
                         ),
                       ),
                       const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          _buildReadingStatItem('2.5', '小时'),
-                          _buildReadingStatItem('12', '章节'),
-                          _buildReadingStatItem('15%', '进度'),
-                        ],
+                      FutureBuilder<Map<String, dynamic>>(
+                        future: _getTodayReadingStats(),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState == ConnectionState.waiting) {
+                            return const Center(child: CircularProgressIndicator());
+                          }
+                          
+                          final data = snapshot.data ?? {
+                            'hours': '0.0',
+                            'words': '0',
+                            'progress': '0'
+                          };
+                          
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
+                              _buildReadingStatItem(data['hours'], '小时'),
+                              _buildReadingStatItem(data['words'], '字数'),
+                              _buildReadingStatItem('${data['progress']}%', '进度'),
+                            ],
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -632,9 +647,9 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
                   child: _buildFunctionButtons(),
                 ),
                 
-                // 所有书籍网格视图
+                // 所有书籍网格视图 - 替换为我的书桌卡片
                 Expanded(
-                  child: _buildBooksGrid(),
+                  child: _buildMyDeskCard(),
                 ),
               ],
             ),
@@ -1019,96 +1034,315 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
     }
   }
 
-  // 添加一个新方法来显示所有书籍的网格视图
-  Widget _buildBooksGrid() {
-    return GridView.builder(
-      padding: const EdgeInsets.all(16),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        childAspectRatio: 0.7,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
+  // 新增：构建我的书桌卡片
+  Widget _buildMyDeskCard() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(16),
       ),
+      child: Column(
+        children: [
+          // 卡片标题和整理按钮
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '我的书桌',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => AllBooksScreen(),
+                      ),
+                    ).then((_) {
+                      if (mounted) {
+                        _refreshData();
+                      }
+                    });
+                  },
+                  icon: const Icon(Icons.sort, size: 18),
+                  label: const Text('整理书桌'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFF2D3A3A),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // 书籍列表
+          Expanded(
+            child: _bookPaths.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.menu_book,
+                          size: 48,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          '书桌上还没有书籍',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: _pickLocalBook,
+                          icon: const Icon(Icons.add),
+                          label: const Text('添加书籍'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF2D3A3A),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : _buildBooksGrid(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 修改：书籍列表显示
+  Widget _buildBooksGrid() {
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
       itemCount: _bookPaths.length,
       itemBuilder: (context, index) {
         final path = _bookPaths[index];
         final fileName = path.split('/').last;
         final progress = _bookProgress[path] ?? 0.0;
+        final bookType = _getBookType(path);
         
-        return GestureDetector(
-          onTap: () => _openBook(context, path),
-          onLongPress: () => _showDeleteDialog(context, index, fileName),
-          child: Column(
-            children: [
-              // 书籍封面
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(8),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
+        // 获取文件类型对应的图标
+        IconData typeIcon;
+        switch (bookType) {
+          case BookType.pdf:
+            typeIcon = Icons.picture_as_pdf;
+            break;
+          case BookType.txt:
+            typeIcon = Icons.text_snippet;
+            break;
+          case BookType.epub:
+            typeIcon = Icons.menu_book;
+            break;
+          case BookType.mobi:
+            typeIcon = Icons.book_online;
+            break;
+          default:
+            typeIcon = Icons.description;
+        }
+        
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          elevation: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () => _openBook(context, path),
+            onLongPress: () => _showDeleteDialog(context, index, fileName),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                children: [
+                  // 文件类型图标
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      typeIcon,
+                      size: 28,
+                      color: const Color(0xFF2D3A3A),
+                    ),
                   ),
-                  child: Stack(
-                    children: [
-                      Center(
-                        child: Icon(
-                          Icons.book,
-                          size: 40,
-                          color: Colors.grey[700],
-                        ),
-                      ),
-                      // 进度条
-                      Positioned(
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        child: Container(
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[200],
-                            borderRadius: const BorderRadius.only(
-                              bottomLeft: Radius.circular(8),
-                              bottomRight: Radius.circular(8),
-                            ),
+                  const SizedBox(width: 16),
+                  // 书籍信息
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          fileName,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
                           ),
-                          child: FractionallySizedBox(
-                            alignment: Alignment.centerLeft,
-                            widthFactor: progress,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF2D3A3A),
-                                borderRadius: BorderRadius.circular(2),
-                              ),
-                            ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 8),
+                        // 进度条
+                        LinearProgressIndicator(
+                          value: progress,
+                          backgroundColor: Colors.grey[300],
+                          valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF2D3A3A)),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '阅读进度: ${(progress * 100).toInt()}%',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
+                ],
               ),
-              const SizedBox(height: 8),
-              // 书名
-              Text(
-                fileName,
-                style: const TextStyle(
-                  fontSize: 12,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
+            ),
+          ),
+        );
+      },
+    );
+  }
+  
+  // 显示书籍操作选项
+  void _showBookOptions(BuildContext context, String path, int index, String fileName) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.open_in_new),
+                title: const Text('打开'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _openBook(context, path);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete),
+                title: const Text('删除'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showDeleteDialog(context, index, fileName);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.info),
+                title: const Text('详情'),
+                onTap: () {
+                  Navigator.pop(context);
+                  // 显示书籍详情
+                  _showBookDetails(context, path);
+                },
               ),
             ],
           ),
         );
       },
     );
+  }
+  
+  // 显示书籍详情
+  void _showBookDetails(BuildContext context, String path) {
+    final fileName = path.split('/').last;
+    final file = File(path);
+    final fileSize = file.existsSync() ? file.lengthSync() : 0;
+    final fileSizeStr = _formatFileSize(fileSize);
+    final lastModified = file.existsSync() ? file.lastModifiedSync() : DateTime.now();
+    final progress = _bookProgress[path] ?? 0.0;
+    final lastReadTimestamp = _lastReadTimestamps[path] ?? 0;
+    final lastReadTime = lastReadTimestamp > 0 
+        ? DateTime.fromMillisecondsSinceEpoch(lastReadTimestamp)
+        : null;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('书籍详情'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildDetailRow('文件名', fileName),
+            _buildDetailRow('文件大小', fileSizeStr),
+            _buildDetailRow('修改时间', '${lastModified.year}-${lastModified.month}-${lastModified.day}'),
+            _buildDetailRow('阅读进度', '${(progress * 100).toInt()}%'),
+            if (lastReadTime != null)
+              _buildDetailRow('最后阅读', '${lastReadTime.year}-${lastReadTime.month}-${lastReadTime.day}'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('关闭'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  // 构建详情行
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 80,
+            child: Text(
+              '$label:',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(value),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  // 格式化文件大小
+  String _formatFileSize(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    if (bytes < 1024 * 1024 * 1024) return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 
   Future<void> _showDeleteDialog(BuildContext context, int index, String fileName) async {
@@ -1324,6 +1558,60 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
       
       // 重新加载所有数据
       await _refreshData();
+    }
+  }
+
+  // 获取今日阅读统计数据
+  Future<Map<String, dynamic>> _getTodayReadingStats() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      // 获取今日阅读时长（分钟）
+      final todayMinutes = prefs.getInt('today_reading_minutes') ?? 0;
+      final hours = (todayMinutes / 60).toStringAsFixed(1);
+      
+      // 获取今日阅读字数
+      final words = prefs.getInt('today_reading_words')?.toString() ?? '0';
+      
+      // 获取今日阅读进度
+      String progress = '0';
+      
+      // 获取最后阅读的书籍
+      String? lastReadBook;
+      int latestTimestamp = 0;
+      
+      for (var path in _bookPaths) {
+        final timestamp = _lastReadTimestamps[path] ?? 0;
+        if (timestamp > latestTimestamp && File(path).existsSync()) {
+          latestTimestamp = timestamp;
+          lastReadBook = path;
+        }
+      }
+      
+      if (lastReadBook != null) {
+        final currentProgress = _bookProgress[lastReadBook] ?? 0.0;
+        final yesterdayProgress = prefs.getDouble('yesterday_progress_$lastReadBook') ?? currentProgress;
+        final progressDiff = currentProgress - yesterdayProgress;
+        progress = (progressDiff * 100).toInt().toString();
+        
+        // 确保进度不为负数
+        if (int.parse(progress) < 0) {
+          progress = '0';
+        }
+      }
+      
+      return {
+        'hours': hours,
+        'words': words,
+        'progress': progress
+      };
+    } catch (e) {
+      debugPrint('获取今日阅读统计数据失败: $e');
+      return {
+        'hours': '0.0',
+        'words': '0',
+        'progress': '0'
+      };
     }
   }
 } 

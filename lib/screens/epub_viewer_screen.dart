@@ -8,6 +8,7 @@ import 'package:flutter_html/flutter_html.dart';
 import 'dart:convert';
 import 'package:html/parser.dart' as htmlparser;
 import 'package:gbk_codec/gbk_codec.dart';
+import 'dart:async';
 
 class EpubViewerScreen extends StatefulWidget {
   final String epubPath;
@@ -31,6 +32,13 @@ class _EpubViewerScreenState extends State<EpubViewerScreen> {
   Map<int, double> _chapterScrollPositions = {};
   bool _showMenu = false;  // 添加菜单显示状态控制
   double _fontSize = 18.0; // 默认字体大小
+  
+  // 阅读时间统计
+  DateTime? _startReadingTime;
+  Timer? _readingTimer;
+  int _readingSeconds = 0;
+  int _wordCount = 0;
+  bool _isActive = true;
 
   @override
   void initState() {
@@ -39,39 +47,44 @@ class _EpubViewerScreenState extends State<EpubViewerScreen> {
     _scrollController.addListener(_handleScroll);
     _loadEpub();
     _loadSettings();
+    _startReadingSession();
   }
 
   void _handleScroll() {
     if (_scrollController.hasClients) {
       _chapterScrollPositions[_currentChapter] = _scrollController.offset;
-      print("📜 滚动位置更新: 章节$_currentChapter, 位置: ${_scrollController.offset}");
+      // print("📜 滚动位置更新: 章节$_currentChapter, 位置: ${_scrollController.offset}");
       _savePosition();
     }
   }
 
   Future<void> _loadEpub() async {
-    print("📚 开始加载EPUB: ${widget.epubPath}");
+    // print("📚 开始加载EPUB: ${widget.epubPath}");
     _parser = EpubParser(widget.epubPath);
     await _parser.parse();
 
     if (mounted) {
-      print("📖 EPUB解析完成，章节数量: ${_parser.chapters.length}");
+      // print("📖 EPUB解析完成，章节数量: ${_parser.chapters.length}");
       setState(() {
         _isLoading = false;
       });
+      
+      // 更新总字数统计
+      _updateTotalWordCount();
+      
       await _loadLastPosition();
     }
   }
 
   /// **📌 加载上次阅读位置**
   Future<void> _loadLastPosition() async {
-    print("🔍 开始加载上次阅读位置");
+    // print("🔍 开始加载上次阅读位置");
     final prefs = await SharedPreferences.getInstance();
     final lastChapter = prefs.getInt('${widget.epubPath}_chapter') ?? 0;
     final scrollPositionsStr = prefs.getString('${widget.epubPath}_scroll_positions');
     
-    print("💾 存储的章节位置: $lastChapter");
-    print("💾 存储的滚动位置数据: $scrollPositionsStr");
+    // print("💾 存储的章节位置: $lastChapter");
+    // print("💾 存储的滚动位置数据: $scrollPositionsStr");
     
     if (scrollPositionsStr != null) {
       try {
@@ -80,7 +93,7 @@ class _EpubViewerScreenState extends State<EpubViewerScreen> {
         positions.forEach((key, value) {
           _chapterScrollPositions[int.parse(key)] = (value as num).toDouble();
         });
-        print("📍 解析的滚动位置Map: $_chapterScrollPositions");
+        // print("📍 解析的滚动位置Map: $_chapterScrollPositions");
       } catch (e, stackTrace) {
         print("⚠️ 解析滚动位置数据失败: $e");
         print("调用栈: $stackTrace");
@@ -100,12 +113,12 @@ class _EpubViewerScreenState extends State<EpubViewerScreen> {
       Future.delayed(const Duration(milliseconds: 500), () {
         if (_scrollController.hasClients) {
           final savedPosition = _chapterScrollPositions[_currentChapter] ?? 0.0;
-          print("📱 准备恢复滚动位置: $savedPosition");
+          // print("📱 准备恢复滚动位置: $savedPosition");
           try {
             _scrollController.jumpTo(savedPosition);
-            print("✅ 滚动位置恢复成功");
+            // print("✅ 滚动位置恢复成功");
           } catch (e) {
-            print("❌ 滚动位置恢复失败: $e");
+            // print("❌ 滚动位置恢复失败: $e");
           }
         } else {
           print("⚠️ ScrollController未就绪");
@@ -131,13 +144,13 @@ class _EpubViewerScreenState extends State<EpubViewerScreen> {
         
         final scrollPositionsStr = json.encode(serializableMap);
         await prefs.setString('${widget.epubPath}_scroll_positions', scrollPositionsStr);
-        print("💾 保存进度成功 - 章节: $_currentChapter, 位置Map: $serializableMap");
+        // print("💾 保存进度成功 - 章节: $_currentChapter, 位置Map: $serializableMap");
         
         // 生成并保存CFI
         final cfi = _generateEpubCfi();
         if (cfi.isNotEmpty) {
           await prefs.setString('${widget.epubPath}_cfi', cfi);
-          print("📍 保存CFI成功: $cfi");
+          // print("📍 保存CFI成功: $cfi");
         }
       }
     } catch (e, stackTrace) {
@@ -171,7 +184,7 @@ class _EpubViewerScreenState extends State<EpubViewerScreen> {
       final chapterId = chapter.href.split('.').first;
       final cfi = "/6/4[$chapterId]!/4/2/1:${progress.toStringAsFixed(4)}";
       
-      print("📊 生成CFI - 章节: $_currentChapter, 标题: ${chapter.title}, 进度: ${(progress * 100).toStringAsFixed(2)}%, CFI: $cfi");
+      // print("📊 生成CFI - 章节: $_currentChapter, 标题: ${chapter.title}, 进度: ${(progress * 100).toStringAsFixed(2)}%, CFI: $cfi");
       return cfi;
     } catch (e, stackTrace) {
       print("❌ 生成CFI失败: $e");
@@ -191,7 +204,7 @@ class _EpubViewerScreenState extends State<EpubViewerScreen> {
         return;
       }
       
-      print("🔍 尝试从CFI恢复位置: $cfi");
+      // print("🔍 尝试从CFI恢复位置: $cfi");
       
       // 解析CFI格式: /6/4[chapterID]!/4/2/1:0.123
       final regex = RegExp(r'/6/4\[(.*?)\]!/4/2/1:([\d\.]+)');
@@ -201,7 +214,7 @@ class _EpubViewerScreenState extends State<EpubViewerScreen> {
         final chapterId = match.group(1);
         final progress = double.tryParse(match.group(2) ?? "0") ?? 0.0;
         
-        print("📖 解析CFI - 章节ID: $chapterId, 进度: ${(progress * 100).toStringAsFixed(2)}%");
+        // print("📖 解析CFI - 章节ID: $chapterId, 进度: ${(progress * 100).toStringAsFixed(2)}%");
         
         // 查找对应章节
         int chapterIndex = -1;
@@ -221,7 +234,7 @@ class _EpubViewerScreenState extends State<EpubViewerScreen> {
           Future.delayed(const Duration(milliseconds: 500), () {
             if (_scrollController.hasClients) {
               final targetPosition = _scrollController.position.maxScrollExtent * progress;
-              print("📱 从CFI恢复滚动位置: $targetPosition");
+              // print("📱 从CFI恢复滚动位置: $targetPosition");
               _scrollController.jumpTo(targetPosition);
             }
           });
@@ -258,6 +271,7 @@ class _EpubViewerScreenState extends State<EpubViewerScreen> {
       setState(() {
         _currentChapter++;
         widget.onProgressChanged(_currentChapter / _parser.chapters.length);
+        _calculateChapterWords(); // 计算新章节的字数
       });
       
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -307,6 +321,125 @@ class _EpubViewerScreenState extends State<EpubViewerScreen> {
       if (_fontSize < 12.0) _fontSize = 12.0;
     });
     _saveSettings();
+  }
+
+  void _startReadingSession() {
+    _startReadingTime = DateTime.now();
+    _readingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_isActive) {
+        _readingSeconds++;
+        
+        // 每分钟保存一次阅读时间
+        if (_readingSeconds % 60 == 0) {
+          _updateReadingStats();
+        }
+      }
+    });
+  }
+  
+  Future<void> _updateReadingStats() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      // 更新总阅读时间
+      final totalMinutes = prefs.getInt('total_reading_minutes') ?? 0;
+      await prefs.setInt('total_reading_minutes', totalMinutes + 1);
+      
+      // 更新今日阅读时间
+      final todayMinutes = prefs.getInt('today_reading_minutes') ?? 0;
+      await prefs.setInt('today_reading_minutes', todayMinutes + 1);
+      
+      // 更新今日阅读字数（根据当前章节估算）
+      if (_currentChapter >= 0 && _currentChapter < _parser.chapters.length) {
+        // 检查这个章节是否已经被计入今日字数
+        final chapterKey = 'counted_today_${widget.epubPath}_chapter_$_currentChapter';
+        if (prefs.getBool(chapterKey) != true) {
+          final content = _parser.chapters[_currentChapter].content;
+          final document = htmlparser.parse(content);
+          final text = document.body?.text ?? '';
+          final chapterWords = text.length;
+          
+          final todayWords = prefs.getInt('today_reading_words') ?? 0;
+          await prefs.setInt('today_reading_words', todayWords + chapterWords);
+          await prefs.setBool(chapterKey, true);
+          
+          // 在午夜重置今日章节计数标记
+          _scheduleResetChapterCountFlags();
+          
+          debugPrint('更新今日阅读字数: +$chapterWords, 总计: ${todayWords + chapterWords}');
+        }
+      }
+      
+      debugPrint('已更新阅读统计: 总时间=${totalMinutes + 1}分钟, 今日=${todayMinutes + 1}分钟');
+    } catch (e) {
+      debugPrint('更新阅读统计失败: $e');
+    }
+  }
+  
+  // 安排在午夜重置章节计数标记
+  void _scheduleResetChapterCountFlags() {
+    final now = DateTime.now();
+    final tomorrow = DateTime(now.year, now.month, now.day + 1);
+    final timeUntilMidnight = tomorrow.difference(now);
+    
+    Future.delayed(timeUntilMidnight, () async {
+      if (mounted) {
+        final prefs = await SharedPreferences.getInstance();
+        // 清除所有今日章节计数标记
+        for (int i = 0; i < _parser.chapters.length; i++) {
+          final chapterKey = 'counted_today_${widget.epubPath}_chapter_$i';
+          await prefs.remove(chapterKey);
+        }
+        debugPrint('已重置今日章节计数标记');
+      }
+    });
+  }
+  
+  // 更新总字数统计
+  Future<void> _updateTotalWordCount() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      // 我们只在首次加载时更新总字数，避免重复计算
+      if (prefs.getBool('counted_${widget.epubPath}') != true) {
+        int totalContentLength = 0;
+        
+        // 计算所有章节的总字数
+        for (var chapter in _parser.chapters) {
+          final document = htmlparser.parse(chapter.content);
+          final text = document.body?.text ?? '';
+          totalContentLength += text.length;
+        }
+        
+        final totalWords = prefs.getInt('total_reading_words') ?? 0;
+        await prefs.setInt('total_reading_words', totalWords + totalContentLength);
+        await prefs.setBool('counted_${widget.epubPath}', true);
+        
+        print("📊 更新总字数: $totalContentLength, 总计: ${totalWords + totalContentLength}");
+      }
+    } catch (e) {
+      print("❌ 更新总字数失败: $e");
+    }
+  }
+
+  // 计算章节内容的字数
+  void _calculateChapterWords() {
+    if (_currentChapter >= 0 && _currentChapter < _parser.chapters.length) {
+      // 获取当前章节的内容，去除HTML标签后计算字数
+      final content = _parser.chapters[_currentChapter].content;
+      final document = htmlparser.parse(content);
+      final text = document.body?.text ?? '';
+      
+      // 检查是否已经计算过这一章节
+      String chapterKey = '${widget.epubPath}_chapter_$_currentChapter';
+      SharedPreferences.getInstance().then((prefs) {
+        if (prefs.getBool(chapterKey) != true) {
+          // 增加字数统计
+          _wordCount += text.length;
+          prefs.setBool(chapterKey, true);
+          print("📊 阅读字数增加: ${text.length}, 总计: $_wordCount");
+        }
+      });
+    }
   }
 
   @override
@@ -683,7 +816,7 @@ class _EpubViewerScreenState extends State<EpubViewerScreen> {
 
   void _jumpToCfi(String cfi) async {
     try {
-      print("🔍 尝试跳转到CFI: $cfi");
+      // print("🔍 尝试跳转到CFI: $cfi");
       
       final regex = RegExp(r'/6/4\[(.*?)\]!/4/2/1:([\d\.]+)');
       final match = regex.firstMatch(cfi);
@@ -692,7 +825,7 @@ class _EpubViewerScreenState extends State<EpubViewerScreen> {
         final chapterId = match.group(1);
         final progress = double.tryParse(match.group(2) ?? "0") ?? 0.0;
         
-        print("📖 解析CFI - 章节ID: $chapterId, 进度: ${(progress * 100).toStringAsFixed(2)}%");
+        // print("📖 解析CFI - 章节ID: $chapterId, 进度: ${(progress * 100).toStringAsFixed(2)}%");
         
         // 查找对应章节
         int chapterIndex = -1;
@@ -713,7 +846,7 @@ class _EpubViewerScreenState extends State<EpubViewerScreen> {
           Future.delayed(const Duration(milliseconds: 500), () {
             if (_scrollController.hasClients) {
               final targetPosition = _scrollController.position.maxScrollExtent * progress;
-              print("📱 跳转到滚动位置: $targetPosition");
+              // print("📱 跳转到滚动位置: $targetPosition");
               _scrollController.jumpTo(targetPosition);
             }
           });
@@ -722,10 +855,10 @@ class _EpubViewerScreenState extends State<EpubViewerScreen> {
         }
       }
       
-      print("⚠️ CFI格式无效或找不到对应章节");
+      // print("⚠️ CFI格式无效或找不到对应章节");
     } catch (e, stackTrace) {
-      print("❌ 跳转到CFI失败: $e");
-      print("调用栈: $stackTrace");
+      // print("❌ 跳转到CFI失败: $e");
+      // print("调用栈: $stackTrace");
     }
   }
 
@@ -759,6 +892,14 @@ class _EpubViewerScreenState extends State<EpubViewerScreen> {
 
   @override
   void dispose() {
+    // 保存最终阅读统计数据
+    if (_readingSeconds > 0) {
+      _updateReadingStats();
+    }
+    
+    // 取消定时器
+    _readingTimer?.cancel();
+    
     _savePosition();
     _scrollController.removeListener(_handleScroll);
     _scrollController.dispose();
