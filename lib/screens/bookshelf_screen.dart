@@ -22,6 +22,7 @@ import 'package:xml/xml.dart';
 import 'package:html/parser.dart' as htmlparser;
 import 'dart:convert';
 import 'package:path/path.dart' as path;
+import 'organize_desk_screen.dart';
 
 enum BookType {
   pdf,
@@ -1062,7 +1063,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const AllBooksScreen()),
+                      MaterialPageRoute(builder: (context) => const OrganizeDeskScreen()),
                     ).then((_) {
                       if (mounted) {
                         _refreshData();

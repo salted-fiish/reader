@@ -7,6 +7,7 @@ import 'screens/welcome_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 import 'utils/file_storage_helper.dart';
+import 'screens/splash_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -97,8 +98,9 @@ class _MyAppState extends State<MyApp> {
           ),
           useMaterial3: true,
         ),
-        initialRoute: _isFirstLaunch ? '/' : '/home',
+        initialRoute: '/splash',
         routes: {
+          '/splash': (context) => const SplashScreen(),
           '/': (context) => const WelcomeScreen(),
           '/home': (context) => const MainScreen(),
         },
@@ -350,6 +352,17 @@ class _MainScreenState extends State<MainScreen> {
                             
                             // 导航到欢迎页
                             Navigator.pushNamed(context, '/');
+                          },
+                        ),
+                        ListTile(
+                          leading: const Icon(Icons.play_circle_outline),
+                          title: const Text('查看启动页面'),
+                          onTap: () async {
+                            Navigator.pop(context); // 关闭设置对话框
+                            Navigator.pop(context); // 关闭抽屉菜单
+                            
+                            // 导航到启动页面
+                            Navigator.pushNamed(context, '/splash');
                           },
                         ),
                       ],
