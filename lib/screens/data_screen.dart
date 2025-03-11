@@ -160,19 +160,20 @@ class _DataScreenState extends State<DataScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 阅读统计卡片
-          Container(
+          Card(
             margin: const EdgeInsets.symmetric(horizontal: 20),
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
+            elevation: 4,
+            color: const Color(0xFFF5F8F5),
+            shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
             child: Padding(
               padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween, // 让四列均匀分布
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       _buildStatColumn('总阅读时长', '${(_totalReadingMinutes / 60).toStringAsFixed(1)}h'),
                       _buildStatColumn('总字数', '${(_totalWords / 1000).toStringAsFixed(1)}k'),
@@ -188,10 +189,11 @@ class _DataScreenState extends State<DataScreen> {
           const SizedBox(height: 24),
           
           // 每周阅读统计图表
-          Container(
+          Card(
             margin: const EdgeInsets.symmetric(horizontal: 20),
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
+            elevation: 4,
+            color: const Color(0xFFF5F8F5),
+            shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
             child: Padding(
@@ -301,13 +303,13 @@ class _DataScreenState extends State<DataScreen> {
                     ],
                   ),
 
-                  const SizedBox(height: 10), // 增加一点间距
+                  const SizedBox(height: 10),
 
                   // 图表区域
                   Align(
                     alignment: _isWeeklyView ? Alignment.topCenter : Alignment.bottomCenter,
                     child: SizedBox(
-                      height: 170, // 让高度统一，位置靠对齐方式调整
+                      height: 170,
                       child: ReadingHistoryChart(
                         weeklyProgress: _isWeeklyView ? _weeklyData : _monthlyData,
                         showAllBars: !_isWeeklyView,
@@ -319,14 +321,14 @@ class _DataScreenState extends State<DataScreen> {
             ),
           ),
 
-          
           const SizedBox(height: 24),
           
           // 书籍统计卡片
-          Container(
+          Card(
             margin: const EdgeInsets.symmetric(horizontal: 20),
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
+            elevation: 4,
+            color: const Color(0xFFF5F8F5),
+            shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
             child: Padding(

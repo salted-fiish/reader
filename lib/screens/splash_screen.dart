@@ -131,7 +131,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             FadeTransition(
               opacity: _animation,
               child: const Text(
-                '这可能是最优雅的阅读app',
+                'The most elegant reading app',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,

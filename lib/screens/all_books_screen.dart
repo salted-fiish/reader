@@ -179,19 +179,19 @@ class _AllBooksScreenState extends State<AllBooksScreen> {
 
   // 获取服务器上的书籍列表
   Future<List<Book>> _getBookList() async {
-    try {
-      final response = await http.get(Uri.parse('$baseUrl/books'));
+    // try {
+    //   final response = await http.get(Uri.parse('$baseUrl/books'));
       
-      if (response.statusCode == 200) {
-        final List<dynamic> jsonList = json.decode(response.body);
-        return jsonList.map((json) => Book.fromJson(json)).toList();
-      } else {
-        throw Exception('获取书籍列表失败: ${response.statusCode}');
-      }
-    } catch (e) {
+    //   if (response.statusCode == 200) {
+    //     final List<dynamic> jsonList = json.decode(response.body);
+    //     return jsonList.map((json) => Book.fromJson(json)).toList();
+    //   } else {
+    //     throw Exception('获取书籍列表失败: ${response.statusCode}');
+    //   }
+    // } catch (e) {
       // 如果服务器未实现此接口，返回模拟数据用于测试
       return _getMockBooks();
-    }
+    // }
   }
   
   // 模拟数据，用于测试
