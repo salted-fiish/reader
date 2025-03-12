@@ -17,7 +17,7 @@ class CharacterRelationshipScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('$bookTitle - 人物关系'),
+        title: Text('$bookTitle - Character Relationships'),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -25,7 +25,7 @@ class CharacterRelationshipScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              '主要人物：',
+              'Main Characters:',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -35,7 +35,7 @@ class CharacterRelationshipScreen extends StatelessWidget {
             ...characters.map((character) => _buildCharacterCard(character)),
             const SizedBox(height: 24),
             const Text(
-              '人物关系：',
+              'Character Relationships:',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,

@@ -124,7 +124,7 @@ class _AllBooksScreenState extends State<AllBooksScreen> {
   
   // 检查已下载文件是否存在
   Future<void> _checkDownloadedFilesExistence() async {
-    print('DEBUG: 开始检查已下载文件是否存在');
+    print('DEBUG: Checking if downloaded files exist');
     bool needsUpdate = false;
     
     // 创建一个临时映射，避免在迭代过程中修改原映射
@@ -136,7 +136,7 @@ class _AllBooksScreenState extends State<AllBooksScreen> {
       
       final file = File(localPath);
       if (!file.existsSync()) {
-        print('DEBUG: 文件不存在，需要清理记录: $localPath');
+        print('DEBUG: File does not exist, need to clean up record: $localPath');
         _downloadedBooks.remove(bookId);
         needsUpdate = true;
         
@@ -146,7 +146,7 @@ class _AllBooksScreenState extends State<AllBooksScreen> {
     }
     
     if (needsUpdate) {
-      print('DEBUG: 有文件不存在，更新下载记录');
+      print('DEBUG: Some files do not exist, updating download records');
       await _saveDownloadedBooks();
       
       // 如果界面已挂载，刷新UI
@@ -171,7 +171,7 @@ class _AllBooksScreenState extends State<AllBooksScreen> {
       });
     } catch (e) {
       setState(() {
-        _errorMessage = '加载书籍失败: $e';
+        _errorMessage = 'Failed to load books: $e';
         _isLoading = false;
       });
     }
@@ -199,55 +199,55 @@ class _AllBooksScreenState extends State<AllBooksScreen> {
     return [
       Book(
         id: '1',
-        title: '三体',
-        author: '刘慈欣',
-        coverUrl: 'https://img9.doubanio.com/view/subject/s/public/s2768378.jpg',
-        fileUrl: '$baseUrl/download/santi.epub',
-        description: '文化大革命如火如荼进行的同时，军方探寻外星文明的绝秘计划"红岸工程"取得了突破性进展。但在按下发射键的那一刻，历经劫难的叶文洁没有意识到，她彻底改变了人类的命运。地球文明向宇宙发出的第一声啼鸣，以太阳为中心，以光速向宇宙深处飞驰……',
+        title: 'Pride and Prejudice',
+        author: 'Jane Austen',
+        coverUrl: 'https://m.media-amazon.com/images/I/71Q1tPupKjL._AC_UF1000,1000_QL80_.jpg',
+        fileUrl: '$baseUrl/download/pride_and_prejudice.epub',
+        description: 'Pride and Prejudice is a romantic novel by Jane Austen, published in 1813. The story follows the main character Elizabeth Bennet as she deals with issues of manners, upbringing, morality, education, and marriage in the society of the landed gentry of early 19th-century England.',
         format: 'epub',
         size: 2048000,
         uploadDate: '2023-05-15',
       ),
       Book(
         id: '2',
-        title: '活着',
-        author: '余华',
-        coverUrl: 'https://img2.doubanio.com/view/subject/s/public/s29053580.jpg',
-        fileUrl: '$baseUrl/download/huozhe.pdf',
-        description: '《活着》是作家余华的代表作之一，讲述了农村人福贵悲惨的人生遭遇。福贵本是个阔少爷，可他嗜赌如命，终于赌光了家业，一贫如洗。他的父亲被他活活气死，母亲则在穷困中患了重病，福贵前去求药，却在途中被国民党抓去当壮丁。经过几番波折回到家里，才知道母亲早已去世，他的妻子家珍含辛茹苦地养大两个儿女。此后更加悲惨的命运一次又一次降临到福贵身上，他的女儿凤霞、儿子有庆、妻子家珍、女婿二喜、外孙苦根先后死去，最后只剩福贵和一头老牛相依为命，但老人依旧活着，仿佛比往日更加洒脱与坚强。',
+        title: 'To Kill a Mockingbird',
+        author: 'Harper Lee',
+        coverUrl: 'https://m.media-amazon.com/images/I/71FxgtFKcQL._AC_UF1000,1000_QL80_.jpg',
+        fileUrl: '$baseUrl/download/to_kill_a_mockingbird.pdf',
+        description: 'To Kill a Mockingbird is a novel by Harper Lee published in 1960. It was immediately successful, winning the Pulitzer Prize, and has become a classic of modern American literature. The plot and characters are loosely based on the author\'s observations of her family, her neighbors and an event that occurred near her hometown in 1936, when she was 10 years old.',
         format: 'pdf',
         size: 3145728,
         uploadDate: '2023-06-20',
       ),
       Book(
         id: '3',
-        title: '百年孤独',
-        author: '加西亚·马尔克斯',
-        coverUrl: 'https://img2.doubanio.com/view/subject/s/public/s6384944.jpg',
-        fileUrl: '$baseUrl/download/bainiangudu.txt',
-        description: '《百年孤独》是魔幻现实主义文学的代表作，描写了布恩迪亚家族七代人的传奇故事，以及加勒比海沿岸小镇马孔多的百年兴衰，反映了拉丁美洲一个世纪以来风云变幻的历史。作品融入神话传说、民间故事、宗教典故等神秘因素，巧妙地糅合了现实与虚幻，展现出一个瑰丽的想象世界，并借此反映了拉丁美洲的现实。',
+        title: 'The Great Gatsby',
+        author: 'F. Scott Fitzgerald',
+        coverUrl: 'https://m.media-amazon.com/images/I/71FTb9X6wsL._AC_UF1000,1000_QL80_.jpg',
+        fileUrl: '$baseUrl/download/the_great_gatsby.txt',
+        description: 'The Great Gatsby is a 1925 novel by American writer F. Scott Fitzgerald. Set in the Jazz Age on Long Island, the novel depicts narrator Nick Carraway\'s interactions with mysterious millionaire Jay Gatsby and Gatsby\'s obsession to reunite with his former lover, Daisy Buchanan.',
         format: 'txt',
         size: 1048576,
         uploadDate: '2023-07-10',
       ),
       Book(
         id: '4',
-        title: '围城',
-        author: '钱钟书',
-        coverUrl: 'https://img1.doubanio.com/view/subject/s/public/s1070222.jpg',
-        fileUrl: '$baseUrl/download/weicheng.mobi',
-        description: '《围城》是钱钟书所著的长篇小说，是中国现代文学史上的经典作品之一。小说描写了青年方鸿渐从国外留学回来后的生活经历，以及他与孙柔嘉、唐晓芙、赵辛楣等人的感情纠葛。小说借方鸿渐的婚姻生活，反映了当时社会的世态人情，对人性进行了深刻的剖析和批判。',
+        title: '1984',
+        author: 'George Orwell',
+        coverUrl: 'https://m.media-amazon.com/images/I/71kxa1-0mfL._AC_UF1000,1000_QL80_.jpg',
+        fileUrl: '$baseUrl/download/1984.mobi',
+        description: '1984 is a dystopian novel by English novelist George Orwell. It was published in June 1949 as Orwell\'s ninth and final book completed in his lifetime. The story was mostly written at Barnhill, a farmhouse on the Scottish island of Jura, at times while Orwell suffered from severe tuberculosis.',
         format: 'mobi',
         size: 4194304,
         uploadDate: '2023-08-05',
       ),
       Book(
         id: '5',
-        title: '平凡的世界',
-        author: '路遥',
-        coverUrl: 'https://img9.doubanio.com/view/subject/s/public/s1144911.jpg',
-        fileUrl: '$baseUrl/download/pingfandeshijie.epub',
-        description: '《平凡的世界》是中国作家路遥创作的一部全景式地表现中国当代城乡社会生活的长篇小说。全书共三部，描述了中国西北黄土高原上的普通人们，在大时代历史进程中所走过的艰难曲折的道路。',
+        title: 'The Lord of the Rings',
+        author: 'J.R.R. Tolkien',
+        coverUrl: 'https://m.media-amazon.com/images/I/71jLBXtWJWL._AC_UF1000,1000_QL80_.jpg',
+        fileUrl: '$baseUrl/download/the_lord_of_the_rings.epub',
+        description: 'The Lord of the Rings is an epic high-fantasy novel by English author and scholar J. R. R. Tolkien. Set in Middle-earth, the story began as a sequel to Tolkien\'s 1937 children\'s book The Hobbit, but eventually developed into a much larger work. Written in stages between 1937 and 1949, The Lord of the Rings is one of the best-selling books ever written.',
         format: 'epub',
         size: 5242880,
         uploadDate: '2023-09-15',
@@ -288,25 +288,25 @@ class _AllBooksScreenState extends State<AllBooksScreen> {
     
     while (retryCount < maxRetries) {
       try {
-        print('DEBUG: 开始下载书籍: ${book.title}, ID: ${book.id}, 尝试次数: ${retryCount + 1}');
+        print('DEBUG: Starting to download book: ${book.title}, ID: ${book.id}, attempt: ${retryCount + 1}');
         // 检查是否已经有相同文件名的书籍
         final fileName = '${book.title}.${book.format}';
         final sanitizedFileName = fileName.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
         final localPath = '$localDirectory/$sanitizedFileName';
         
-        print('DEBUG: 生成本地路径: $localPath');
+        print('DEBUG: Generated local path: $localPath');
         
         // 如果文件已存在，先删除它
         final existingFile = File(localPath);
         if (existingFile.existsSync()) {
-          print('DEBUG: 发现同名文件已存在，准备删除');
+          print('DEBUG: Found existing file with same name, preparing to delete');
           await existingFile.delete();
-          print('DEBUG: 同名文件删除成功');
+          print('DEBUG: Successfully deleted existing file');
         } else {
-          print('DEBUG: 没有发现同名文件');
+          print('DEBUG: No existing file found');
         }
         
-        print('DEBUG: 准备发送HTTP请求: ${book.fileUrl}');
+        print('DEBUG: Preparing to send HTTP request: ${book.fileUrl}');
         
         // 使用超时设置，避免无限等待
         final client = http.Client();
@@ -685,38 +685,38 @@ class _AllBooksScreenState extends State<AllBooksScreen> {
         final file = File(localPath);
         if (file.existsSync()) {
           await file.delete();
-          print('DEBUG: 已删除部分下载的文件: $localPath');
+          print('DEBUG: Deleted partially downloaded file: $localPath');
         }
         
         final tempFile = File('$localPath.temp');
         if (tempFile.existsSync()) {
           await tempFile.delete();
-          print('DEBUG: 已删除临时文件: $localPath.temp');
+          print('DEBUG: Deleted temporary file: $localPath.temp');
         }
       } catch (cleanupError) {
-        print('DEBUG: 清理文件时出错: $cleanupError');
+        print('DEBUG: Error cleaning up files: $cleanupError');
       }
     }
   }
   
   // 从pdf_paths中移除指定路径
   Future<void> _removeFromPdfPaths(String path) async {
-    print('DEBUG: 开始从pdf_paths中移除路径: $path');
+    print('DEBUG: Starting to remove path from pdf_paths: $path');
     final prefs = await SharedPreferences.getInstance();
     List<String> paths = prefs.getStringList('pdf_paths') ?? [];
-    print('DEBUG: 当前pdf_paths: $paths');
+    print('DEBUG: Current pdf_paths: $paths');
     
     if (paths.contains(path)) {
-      print('DEBUG: 找到路径，准备移除');
+      print('DEBUG: Path found, preparing to remove');
       paths.remove(path);
       await prefs.setStringList('pdf_paths', paths);
-      print('DEBUG: 路径已从pdf_paths中移除');
+      print('DEBUG: Path removed from pdf_paths');
       
       // 同时移除相关的进度记录
       await prefs.remove('progress_$path');
-      print('DEBUG: 相关进度记录已移除');
+      print('DEBUG: Related progress record removed');
     } else {
-      print('DEBUG: 路径不在pdf_paths中');
+      print('DEBUG: Path not in pdf_paths');
     }
   }
   
@@ -752,7 +752,7 @@ class _AllBooksScreenState extends State<AllBooksScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFFF5F8F5),
         // appBar: AppBar(
         //   title: const Text('在线书库', style: TextStyle(color: Color(0xFF2D3A3A))),
         //   backgroundColor: Colors.white,
@@ -773,7 +773,7 @@ class _AllBooksScreenState extends State<AllBooksScreen> {
     
     if (_errorMessage.isNotEmpty) {
       return Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFFF5F8F5),
         // appBar: AppBar(
         //   title: const Text('在线书库', style: TextStyle(color: Color(0xFF2D3A3A))),
         //   backgroundColor: Colors.white,
@@ -813,7 +813,7 @@ class _AllBooksScreenState extends State<AllBooksScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF5F8F5),
       // appBar: AppBar(
       //   title: const Text('在线书库', style: TextStyle(color: Color(0xFF2D3A3A))),
       //   backgroundColor: Colors.white,
@@ -829,7 +829,7 @@ class _AllBooksScreenState extends State<AllBooksScreen> {
       body: _books.isEmpty
           ? const Center(
               child: Text(
-                '没有可用的书籍',
+                'No books available',
                 style: TextStyle(
                   fontSize: 18,
                   color: Colors.grey,
@@ -847,6 +847,7 @@ class _AllBooksScreenState extends State<AllBooksScreen> {
                 return Card(
                   margin: const EdgeInsets.only(bottom: 16),
                   elevation: 2,
+                  color: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -951,7 +952,7 @@ class _AllBooksScreenState extends State<AllBooksScreen> {
                                     if (isDownloaded)
                                       ElevatedButton.icon(
                                         icon: const Icon(Icons.book, size: 16),
-                                        label: const Text('阅读'),
+                                        label: const Text('Read'),
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: const Color(0xFF2D3A3A),
                                           foregroundColor: Colors.white,
@@ -984,7 +985,7 @@ class _AllBooksScreenState extends State<AllBooksScreen> {
                                     else
                                       ElevatedButton.icon(
                                         icon: const Icon(Icons.download, size: 16),
-                                        label: const Text('下载'),
+                                        label: const Text('Download'),
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: const Color(0xFF2D3A3A),
                                           foregroundColor: Colors.white,
@@ -1164,7 +1165,7 @@ class BookDetailSheet extends StatelessWidget {
             child: isDownloaded
                 ? ElevatedButton.icon(
                     icon: const Icon(Icons.book),
-                    label: const Text('开始阅读'),
+                    label: const Text('Start Reading'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF2D3A3A),
                       foregroundColor: Colors.white,
@@ -1182,7 +1183,7 @@ class BookDetailSheet extends StatelessWidget {
                             valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
                         ),
-                        label: Text('下载中 ${(downloadProgress * 100).toInt()}%'),
+                        label: Text('Downloading ${(downloadProgress * 100).toInt()}%'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.grey,
                           foregroundColor: Colors.white,
@@ -1192,7 +1193,7 @@ class BookDetailSheet extends StatelessWidget {
                       )
                     : ElevatedButton.icon(
                         icon: const Icon(Icons.download),
-                        label: const Text('下载'),
+                        label: const Text('Download'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF2D3A3A),
                           foregroundColor: Colors.white,
@@ -1206,7 +1207,7 @@ class BookDetailSheet extends StatelessWidget {
           
           // 书籍简介
           const Text(
-            '内容简介',
+            'Book Description',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,

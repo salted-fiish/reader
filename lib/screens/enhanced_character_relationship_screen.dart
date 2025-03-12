@@ -34,15 +34,15 @@ class _EnhancedCharacterRelationshipScreenState extends State<EnhancedCharacterR
       final difference = now.difference(widget.analysisTime!);
       
       if (difference.inMinutes < 1) {
-        analysisTimeText = '刚刚分析';
+        analysisTimeText = 'Just now';
       } else if (difference.inHours < 1) {
-        analysisTimeText = '${difference.inMinutes}分钟前分析';
+        analysisTimeText = '${difference.inMinutes} minutes ago';
       } else if (difference.inDays < 1) {
-        analysisTimeText = '${difference.inHours}小时前分析';
+        analysisTimeText = '${difference.inHours} hours ago';
       } else if (difference.inDays < 30) {
-        analysisTimeText = '${difference.inDays}天前分析';
+        analysisTimeText = '${difference.inDays} days ago';
       } else {
-        analysisTimeText = '${widget.analysisTime!.year}-${widget.analysisTime!.month}-${widget.analysisTime!.day} 分析';
+        analysisTimeText = 'Analyzed on ${widget.analysisTime!.year}-${widget.analysisTime!.month}-${widget.analysisTime!.day}';
       }
     }
 
@@ -86,7 +86,7 @@ class _EnhancedCharacterRelationshipScreenState extends State<EnhancedCharacterR
                     
                     const SizedBox(height: 24),
                     const Text(
-                      '主要人物：',
+                      'Main Characters:',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -97,7 +97,7 @@ class _EnhancedCharacterRelationshipScreenState extends State<EnhancedCharacterR
                     
                     const SizedBox(height: 24),
                     const Text(
-                      '人物关系：',
+                      'Character Relationships:',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -129,12 +129,12 @@ class _EnhancedCharacterRelationshipScreenState extends State<EnhancedCharacterR
                         IconButton(
                           icon: const Icon(Icons.arrow_back, color: Colors.white),
                           onPressed: () => Navigator.of(context).pop(),
-                          tooltip: '返回',
+                          tooltip: 'Back',
                         ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            '${widget.bookTitle} - 人物关系',
+                            '${widget.bookTitle} - Character Relationships',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 16,
@@ -167,7 +167,7 @@ class _EnhancedCharacterRelationshipScreenState extends State<EnhancedCharacterR
                         IconButton(
                           icon: const Icon(Icons.refresh, color: Colors.white),
                           onPressed: widget.onRefresh,
-                          tooltip: '刷新人物关系',
+                          tooltip: 'Refresh Analysis',
                         ),
                       ],
                     ),
@@ -197,7 +197,7 @@ class _EnhancedCharacterRelationshipScreenState extends State<EnhancedCharacterR
                 const Icon(Icons.book, color: Colors.indigo),
                 const SizedBox(width: 8),
                 Text(
-                  bookInfo['title'] ?? '未知作品',
+                  bookInfo['title'] ?? 'Unknown Work',
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -209,7 +209,7 @@ class _EnhancedCharacterRelationshipScreenState extends State<EnhancedCharacterR
             if (bookInfo['author'] != null) ...[
               const SizedBox(height: 8),
               Text(
-                '作者：${bookInfo['author']}',
+                'Author: ${bookInfo['author']}',
                 style: const TextStyle(
                   fontSize: 14,
                   color: Colors.black87,
@@ -218,7 +218,7 @@ class _EnhancedCharacterRelationshipScreenState extends State<EnhancedCharacterR
             ],
             const SizedBox(height: 12),
             const Text(
-              '当前情节：',
+              'Current Plot:',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
@@ -227,7 +227,7 @@ class _EnhancedCharacterRelationshipScreenState extends State<EnhancedCharacterR
             ),
             const SizedBox(height: 4),
             Text(
-              bookInfo['current_plot'] ?? '未知情节',
+              bookInfo['current_plot'] ?? 'Unknown plot',
               style: const TextStyle(
                 fontSize: 14,
                 color: Colors.black87,
@@ -260,7 +260,7 @@ class _EnhancedCharacterRelationshipScreenState extends State<EnhancedCharacterR
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: character['importance'] == '主要' 
+                    color: character['importance'] == 'Main' || character['importance'] == '主要'
                         ? Colors.blue.withOpacity(0.2)
                         : Colors.grey.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(4),
@@ -268,7 +268,7 @@ class _EnhancedCharacterRelationshipScreenState extends State<EnhancedCharacterR
                   child: Text(
                     character['importance'],
                     style: TextStyle(
-                      color: character['importance'] == '主要' 
+                      color: character['importance'] == 'Main' || character['importance'] == '主要'
                           ? Colors.blue
                           : Colors.grey[700],
                       fontSize: 12,

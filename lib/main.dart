@@ -56,7 +56,7 @@ class _MyAppState extends State<MyApp> {
       isDarkMode: _isDarkMode,
       toggleTheme: _toggleTheme,
       child: MaterialApp(
-        title: '阅读器',
+        title: 'Reader',
         themeMode: _isDarkMode ? ThemeMode.dark : ThemeMode.light,
         theme: ThemeData(
           colorScheme: const ColorScheme.light(
@@ -267,9 +267,9 @@ class _MainScreenState extends State<MainScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      _buildTabButton(0, '书架'),
-                      _buildTabButton(1, '书桌'),
-                      _buildTabButton(2, '数据'),
+                      _buildTabButton(0, 'Library'),
+                      _buildTabButton(1, 'Desk'),
+                      _buildTabButton(2, 'Stats'),
                     ],
                   ),
                 ),
@@ -313,7 +313,7 @@ class _MainScreenState extends State<MainScreen> {
                 color: Theme.of(context).colorScheme.primary,
               ),
               child: const Text(
-                '阅读器',
+                'Reader',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 24,
@@ -322,19 +322,19 @@ class _MainScreenState extends State<MainScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.settings),
-              title: const Text('设置'),
+              title: const Text('Settings'),
               onTap: () {
                 Navigator.pop(context);
                 showDialog(
                   context: context,
                   builder: (context) => AlertDialog(
-                    title: const Text('设置'),
+                    title: const Text('Settings'),
                     content: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         ListTile(
                           leading: const Icon(Icons.brightness_6),
-                          title: const Text('深色模式'),
+                          title: const Text('Dark Mode'),
                           trailing: Switch(
                             value: Theme.of(context).brightness == Brightness.dark,
                             onChanged: (value) {
@@ -345,7 +345,7 @@ class _MainScreenState extends State<MainScreen> {
                         ),
                         ListTile(
                           leading: const Icon(Icons.slideshow),
-                          title: const Text('查看欢迎页'),
+                          title: const Text('View Welcome Page'),
                           onTap: () async {
                             Navigator.pop(context); // 关闭设置对话框
                             Navigator.pop(context); // 关闭抽屉菜单
@@ -356,7 +356,7 @@ class _MainScreenState extends State<MainScreen> {
                         ),
                         ListTile(
                           leading: const Icon(Icons.play_circle_outline),
-                          title: const Text('查看启动页面'),
+                          title: const Text('View Splash Screen'),
                           onTap: () async {
                             Navigator.pop(context); // 关闭设置对话框
                             Navigator.pop(context); // 关闭抽屉菜单
@@ -373,22 +373,22 @@ class _MainScreenState extends State<MainScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.delete_forever),
-              title: const Text('清除所有数据'),
+              title: const Text('Clear All Data'),
               onTap: () async {
                 Navigator.pop(context);
                 final confirm = await showDialog<bool>(
                   context: context,
                   builder: (context) => AlertDialog(
-                    title: const Text('确认清除'),
-                    content: const Text('这将删除所有书籍和阅读进度，确定要继续吗？'),
+                    title: const Text('Confirm'),
+                    content: const Text('This will delete all books and reading progress. Are you sure?'),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(context, false),
-                        child: const Text('取消'),
+                        child: const Text('Cancel'),
                       ),
                       TextButton(
                         onPressed: () => Navigator.pop(context, true),
-                        child: const Text('确定'),
+                        child: const Text('Confirm'),
                       ),
                     ],
                   ),
@@ -400,7 +400,7 @@ class _MainScreenState extends State<MainScreen> {
                   // 刷新页面
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('所有数据已清除')),
+                      const SnackBar(content: Text('All data has been cleared')),
                     );
                     // 重新加载页面
                     setState(() {
@@ -413,25 +413,25 @@ class _MainScreenState extends State<MainScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.info),
-              title: const Text('关于'),
+              title: const Text('About'),
               onTap: () {
                 Navigator.pop(context);
                 showDialog(
                   context: context,
                   builder: (context) => AlertDialog(
-                    title: const Text('关于阅读器'),
+                    title: const Text('About Reader'),
                     content: const Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text('阅读器 v1.0.0'),
+                        Text('Reader v1.0.0'),
                         SizedBox(height: 8),
-                        Text('一个简洁的多格式阅读应用'),
+                        Text('A clean multi-format reading app'),
                       ],
                     ),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(context),
-                        child: const Text('确定'),
+                        child: const Text('OK'),
                       ),
                     ],
                   ),

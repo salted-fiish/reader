@@ -148,16 +148,16 @@ class _OrganizeDeskScreenState extends State<OrganizeDeskScreen> {
     final delete = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('删除确认'),
-        content: Text('确定要从书桌中删除 $fileName 吗？'),
+        title: const Text('Delete Confirmation'),
+        content: Text('Are you sure you want to delete $fileName from the desk?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
+            child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('删除'),
+            child: const Text('Delete'),
           ),
         ],
       ),
@@ -209,21 +209,21 @@ class _OrganizeDeskScreenState extends State<OrganizeDeskScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('书籍详情'),
+        title: const Text('book details'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildDetailRow('文件名', fileName),
-            _buildDetailRow('文件大小', fileSizeStr),
-            _buildDetailRow('修改时间', '${lastModified.year}-${lastModified.month}-${lastModified.day}'),
-            _buildDetailRow('阅读进度', '${(progress * 100).toInt()}%'),
+            _buildDetailRow('file name', fileName),
+            _buildDetailRow('file size', fileSizeStr),
+            _buildDetailRow('last modified', '${lastModified.year}-${lastModified.month}-${lastModified.day}'),
+            _buildDetailRow('reading progress', '${(progress * 100).toInt()}%'),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('关闭'),
+            child: const Text('close'),
           ),
         ],
       ),
@@ -265,7 +265,7 @@ class _OrganizeDeskScreenState extends State<OrganizeDeskScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('整理书桌', style: TextStyle(color: Color(0xFF2D3A3A))),
+        title: const Text('Organize Desk', style: TextStyle(color: Color(0xFF2D3A3A))),
         backgroundColor: Colors.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: Color(0xFF2D3A3A)),
@@ -284,7 +284,7 @@ class _OrganizeDeskScreenState extends State<OrganizeDeskScreen> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        '书桌上还没有书籍',
+                        'No books on the desk',
                         style: TextStyle(
                           fontSize: 16,
                           color: Colors.grey[600],
@@ -387,7 +387,7 @@ class _OrganizeDeskScreenState extends State<OrganizeDeskScreen> {
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    '阅读进度: ${(progress * 100).toInt()}%',
+                                    'reading progress: ${(progress * 100).toInt()}%',
                                     style: TextStyle(
                                       fontSize: 12,
                                       color: Colors.grey[600],
@@ -419,7 +419,7 @@ class _OrganizeDeskScreenState extends State<OrganizeDeskScreen> {
                                     children: [
                                       Icon(Icons.book, size: 18),
                                       SizedBox(width: 8),
-                                      Text('阅读'),
+                                      Text('Read'),
                                     ],
                                   ),
                                 ),
@@ -429,7 +429,7 @@ class _OrganizeDeskScreenState extends State<OrganizeDeskScreen> {
                                     children: [
                                       Icon(Icons.info_outline, size: 18),
                                       SizedBox(width: 8),
-                                      Text('详情'),
+                                      Text('Details'),
                                     ],
                                   ),
                                 ),
@@ -439,7 +439,7 @@ class _OrganizeDeskScreenState extends State<OrganizeDeskScreen> {
                                     children: [
                                       Icon(Icons.delete_outline, size: 18, color: Colors.red),
                                       SizedBox(width: 8),
-                                      Text('删除', style: TextStyle(color: Colors.red)),
+                                      Text('delete', style: TextStyle(color: Colors.red)),
                                     ],
                                   ),
                                 ),

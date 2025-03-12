@@ -174,7 +174,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
         final file = File(path);
         if (!file.existsSync()) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('文件不存在: ${path.split('/').last}')),
+            SnackBar(content: Text('File does not exist: ${path.split('/').last}')),
           );
           return;
         }
@@ -204,12 +204,12 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
           
           if (uniqueFileName != fileName) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('已添加为: $uniqueFileName')),
+              SnackBar(content: Text('Added as: $uniqueFileName')),
             );
           }
         } catch (e) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('复制文件失败: $e')),
+            SnackBar(content: Text('Copy file failed: $e')),
           );
           return;
         }
@@ -258,7 +258,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
             children: [
               CircularProgressIndicator(),
               SizedBox(height: 16),
-              Text('正在转换MOBI文件...')
+              Text('Converting MOBI file...')
             ],
           ),
         ),
@@ -296,7 +296,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
         try {
           await tempFile.delete();
         } catch (e) {
-          debugPrint('删除临时文件失败: $e');
+          debugPrint('Delete temporary file failed: $e');
         }
         
         Navigator.pop(context); // 关闭对话框
@@ -313,14 +313,14 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('MOBI文件转换成功！')),
+            const SnackBar(content: Text('MOBI file converted successfully!')),
           );
         }
       } else {
         Navigator.pop(context);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('转换后的文件不存在')),
+            const SnackBar(content: Text('Converted file does not exist')),
           );
         }
       }
@@ -328,7 +328,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
       Navigator.pop(context);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('转换失败: $e')),
+          SnackBar(content: Text('Conversion failed: $e')),
         );
       }
     }
@@ -339,7 +339,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
     final file = File(path);
     if (!file.existsSync()) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('文件不存在: ${path.split('/').last}')),
+        SnackBar(content: Text('File does not exist: ${path.split('/').last}')),
       );
       return;
     }
@@ -381,11 +381,11 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
       case BookType.mobi:
         // 对于mobi文件，我们应该先转换为epub
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('MOBI文件需要先转换为EPUB格式')),
+          const SnackBar(content: Text('MOBI file needs to be converted to EPUB format')),
         );
         return;
       default:
-        viewer = const Center(child: Text('不支持的文件格式'));
+        viewer = const Center(child: Text('Unsupported file format'));
     }
 
     await Navigator.push(
@@ -431,13 +431,14 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
     final lastReadProgress = lastReadBook != null ? (_bookProgress[lastReadBook] ?? 0.0) : 0.0;
     
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F8F5),
       body: _bookPaths.isEmpty
           ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text(
-                    '书架是空的',
+                    'Bookshelf is empty',
                     style: TextStyle(
                       fontSize: 16,
                       color: Colors.grey,
@@ -471,7 +472,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
                               ),
                               SizedBox(width: 8),
                               Text(
-                                '点击导入书籍',
+                                'Import Books',
                                 style: TextStyle(
                                   color: Colors.black,
                                   fontSize: 16,
@@ -495,7 +496,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
                   Card(
                     margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                     elevation: 4,
-                    color: const Color(0xFFF5F8F5),
+                    color: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
@@ -542,7 +543,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  '最近阅读',
+                                  'Recently Read',
                                   style: TextStyle(
                                     fontSize: 14,
                                     color: Colors.grey[600],
@@ -599,7 +600,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
                 Card(
                   margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   elevation: 4,
-                  color: const Color(0xFFF5F8F5),
+                  color: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
@@ -608,17 +609,36 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
                     children: [
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-                        child: Text(
-                          '今日阅读',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey[800],
-                          ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Today\'s Reading',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey[800],
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.settings, size: 20),
+                              onPressed: () => _showSetReadingGoalDialog(context),
+                              tooltip: 'Set Reading Goal',
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              color: Colors.grey[600],
+                            ),
+                          ],
                         ),
                       ),
                       FutureBuilder<Map<String, dynamic>>(
-                        future: _getTodayReadingStats(),
+                        future: Future.wait([
+                          _getTodayReadingStats(),
+                          _getReadingGoal(),
+                        ]).then((results) => {
+                          ...results[0] as Map<String, dynamic>,
+                          'targetHours': results[1] as double,
+                        }),
                         builder: (context, snapshot) {
                           if (snapshot.connectionState == ConnectionState.waiting) {
                             return const Center(child: CircularProgressIndicator());
@@ -627,19 +647,68 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
                           final data = snapshot.data ?? {
                             'hours': '0.0',
                             'words': '0',
-                            'progress': '0'
+                            'progress': '0',
+                            'targetHours': 2.0,
                           };
                           
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 16),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceAround,
-                              children: [
-                                _buildReadingStatItem(data['hours'], '小时'),
-                                _buildReadingStatItem(data['words'], '字数'),
-                                _buildReadingStatItem('${data['progress']}%', '进度'),
-                              ],
-                            ),
+                          // 获取目标阅读时间
+                          final double readingHours = double.parse(data['hours']);
+                          final double targetHours = data['targetHours'];
+                          final double progressPercentage = targetHours > 0 ? (readingHours / targetHours).clamp(0.0, 1.0) : 0.0;
+                          
+                          return Column(
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      '${data['hours']}h',
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF2D3A3A),
+                                      ),
+                                    ),
+                                    Text(
+                                      'Goal: ${targetHours.toStringAsFixed(1)}h',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                child: Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(4),
+                                      child: LinearProgressIndicator(
+                                        value: progressPercentage,
+                                        backgroundColor: Colors.grey[200],
+                                        valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF2D3A3A)),
+                                        minHeight: 20,
+                                      ),
+                                    ),
+                                    Text(
+                                      '${(progressPercentage * 100).toInt()}%',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                            ],
                           );
                         },
                       ),
@@ -659,7 +728,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
                   child: Card(
                     margin: const EdgeInsets.only(left: 20, right: 20, bottom: 30, top: 0),
                     elevation: 4,
-                    color: const Color(0xFFF5F8F5),
+                    color: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
@@ -672,7 +741,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                '我的书桌',
+                                'My Desk',
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
@@ -699,7 +768,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
                                   ),
                                 ),
                                 child: const Text(
-                                  '整理书桌',
+                                  'Organize',
                                   style: TextStyle(fontSize: 16),
                                   textAlign: TextAlign.center,
                                 ),
@@ -722,7 +791,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
                                     ),
                                     const SizedBox(height: 16),
                                     Text(
-                                      '书桌上还没有书籍',
+                                      'No books on desk',
                                       style: TextStyle(
                                         fontSize: 16,
                                         color: Colors.grey[600],
@@ -732,7 +801,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
                                     ElevatedButton.icon(
                                       onPressed: _pickLocalBook,
                                       icon: const Icon(Icons.add),
-                                      label: const Text('添加书籍'),
+                                      label: const Text('Add Books'),
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: const Color(0xFF2D3A3A),
                                         foregroundColor: Colors.white,
@@ -758,13 +827,13 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
 
   Widget _buildFunctionButtons() {
     final buttonItems = [
-      {'title': '人物关系', 'onTap': () => _showCharacterRelationship(context)},
-      {'title': '概括上文', 'onTap': () {}},
-      {'title': '本地导入', 'onTap': _pickLocalBook},
-      {'title': '未竟事宜', 'onTap': () {
+      {'title': 'Character Relations', 'onTap': () => _showCharacterRelationship(context)},
+      {'title': 'Summarize', 'onTap': () {}},
+      {'title': 'Import', 'onTap': _pickLocalBook},
+      {'title': 'Coming Soon', 'onTap': () {
         // 这里可以添加未竟事宜的处理逻辑
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('此功能尚未实现')),
+          const SnackBar(content: Text('This feature is not yet implemented')),
         );
       }},
     ];
@@ -781,7 +850,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
       itemBuilder: (context, index) {
         return Card(
           elevation: 2,
-          color: const Color(0xFFF5F8F5),
+          color: Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
@@ -843,9 +912,9 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
         if (cacheString != null) {
           try {
             _characterAnalysisCache[path] = jsonDecode(cacheString);
-            print('已加载人物关系缓存: $path');
+            print('Loaded character relationship cache: $path');
           } catch (e) {
-            print('解析人物关系缓存失败: $path, 错误: $e');
+            print('Parsing character relationship cache failed: $path, error: $e');
           }
         }
       }
@@ -869,9 +938,9 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
           _characterAnalysisCache[path] = cacheData;
         });
       }
-      print('已保存人物关系缓存: $path');
+      print('Saved character relationship cache: $path');
     } catch (e) {
-      print('保存人物关系缓存失败: $path, 错误: $e');
+      print('Saving character relationship cache failed: $path, error: $e');
     }
   }
   
@@ -890,7 +959,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
   void _showCharacterRelationship(BuildContext context) async {
     if (_bookPaths.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请先导入一本书')),
+        const SnackBar(content: Text('Please import a book first')),
       );
       return;
     }
@@ -919,7 +988,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
     
     if (lastReadBook == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('无法找到有效的书籍')),
+        const SnackBar(content: Text('No valid book found')),
       );
       return;
     }
@@ -987,13 +1056,13 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: Text('分析 $fileName 的人物关系'),
+        title: Text('Analyzing characters in $fileName'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const CircularProgressIndicator(),
             const SizedBox(height: 16),
-            Text('正在分析当前阅读位置 (${(progress * 100).toInt()}%)...'),
+            Text('Analyzing current reading position (${(progress * 100).toInt()}%)...'),
           ],
         ),
       ),
@@ -1122,7 +1191,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
       if (mounted) {
         Navigator.pop(context);  // 关闭加载对话框
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('分析失败: ${e.toString()}')),
+          SnackBar(content: Text('Analysis failed: ${e.toString()}')),
         );
       }
     }
@@ -1161,7 +1230,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
           elevation: 2,
-          color: const Color(0xFFF5F8F5),
+          color: Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -1235,16 +1304,16 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
     final delete = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('删除确认'),
-        content: Text('确定要从书架中删除 $fileName 吗？'),
+        title: const Text('Delete Confirmation'),
+        content: Text('Are you sure you want to delete $fileName from the bookshelf?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
+            child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('删除'),
+            child: const Text('Delete'),
           ),
         ],
       ),
@@ -1273,7 +1342,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
   }
 
   Future<void> _refreshData() async {
-    print("刷新书架数据");
+    print("Refreshing bookshelf data");
     await _loadSavedPDFs();
     await _loadBookProgress();
     await _loadLastReadTimestamps(); // 加载最后阅读时间戳
@@ -1295,7 +1364,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
   Future<void> _clearAllData() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('pdf_paths');
-    // 清除所有进度数据、最后阅读时间戳和人物关系分析缓存
+    // Clear all progress data, last read timestamps and character analysis cache
     for (var path in _bookPaths) {
       await prefs.remove('progress_$path');
       await prefs.remove('last_read_$path');
@@ -1306,7 +1375,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
       _bookProgress = {};
       _lastReadTimestamps = {};
       _characterAnalysisCache = {};
-      _currentPage = 0;  // 重置当前页面索引
+      _currentPage = 0;  // Reset current page index
     });
   }
 
@@ -1400,9 +1469,9 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
             }
             
             needsUpdate = true;
-            debugPrint('文件已迁移到应用存储: $path -> $newPath');
+            debugPrint('File migrated to app storage: $path -> $newPath');
           } catch (e) {
-            debugPrint('迁移文件失败: $path, 错误: $e');
+            debugPrint('Failed to migrate file: $path, error: $e');
             // 如果迁移失败，仍然保留原路径
             validPaths.add(path);
             
@@ -1428,7 +1497,7 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
         }
       } else {
         needsUpdate = true;
-        debugPrint('文件不存在，将从书架移除: $path');
+        debugPrint('File does not exist, will be removed from bookshelf: $path');
       }
     }
     
@@ -1499,5 +1568,75 @@ class _BookshelfScreenState extends State<BookshelfScreen> with WidgetsBindingOb
         'progress': '0'
       };
     }
+  }
+
+  // 获取阅读目标时间（小时）
+  Future<double> _getReadingGoal() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getDouble('reading_goal_hours') ?? 2.0;
+  }
+
+  // 设置阅读目标对话框
+  void _showSetReadingGoalDialog(BuildContext context) async {
+    final currentGoal = await _getReadingGoal();
+    double newGoal = currentGoal;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Set Daily Reading Goal'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Please set your daily reading hours:'),
+            const SizedBox(height: 16),
+            StatefulBuilder(
+              builder: (context, setState) {
+                return Column(
+                  children: [
+                    Text(
+                      '${newGoal.toStringAsFixed(1)} hours',
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Slider(
+                      value: newGoal,
+                      min: 0.5,
+                      max: 10.0,
+                      divisions: 19,
+                      label: newGoal.toStringAsFixed(1),
+                      onChanged: (value) {
+                        setState(() {
+                          newGoal = value;
+                        });
+                      },
+                    ),
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setDouble('reading_goal_hours', newGoal);
+              if (mounted) {
+                Navigator.pop(context);
+                setState(() {}); // 刷新UI
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
   }
 } 

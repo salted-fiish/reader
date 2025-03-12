@@ -142,7 +142,7 @@ class _DataScreenState extends State<DataScreen> {
     if (_bookPaths.isEmpty) {
       return const Center(
         child: Text(
-          '暂无阅读数据',
+          'No reading data',
           style: TextStyle(
             fontSize: 16,
             color: Colors.grey,
@@ -154,212 +154,215 @@ class _DataScreenState extends State<DataScreen> {
     // 实时获取最新的总字数
     _refreshTotalWords();
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(vertical: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 阅读统计卡片
-          Card(
-            margin: const EdgeInsets.symmetric(horizontal: 20),
-            elevation: 4,
-            color: const Color(0xFFF5F8F5),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _buildStatColumn('总阅读时长', '${(_totalReadingMinutes / 60).toStringAsFixed(1)}h'),
-                      _buildStatColumn('总字数', '${(_totalWords / 1000).toStringAsFixed(1)}k'),
-                      _buildStatColumn('阅读天数', '$_totalReadingDays天'),
-                      _buildStatColumn('当前连续', '$_currentStreak天'),
-                    ],
-                  ),
-                ],
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F8F5),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 阅读统计卡片
+            Card(
+              margin: const EdgeInsets.symmetric(horizontal: 20),
+              elevation: 4,
+              color: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildStatColumn('Total Time', '${(_totalReadingMinutes / 60).toStringAsFixed(1)}h'),
+                        _buildStatColumn('Total Words', '${(_totalWords / 1000).toStringAsFixed(1)}k'),
+                        _buildStatColumn('Reading Days', '$_totalReadingDays'),
+                        _buildStatColumn('Current Streak', '$_currentStreak'),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-          
-          const SizedBox(height: 24),
-          
-          // 每周阅读统计图表
-          Card(
-            margin: const EdgeInsets.symmetric(horizontal: 20),
-            elevation: 4,
-            color: const Color(0xFFF5F8F5),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 标题 + 提示信息 + 切换按钮
-                  Row(
-                    children: [
-                      // 标题
-                      Text(
-                        _isWeeklyView ? '每周阅读' : '每月阅读',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey[800],
-                        ),
-                      ),
-                      
-                      // 提示信息（居中）
-                      Expanded(
-                        child: Center(
-                          child: ValueListenableBuilder<String?>(
-                            valueListenable: ReadingHistoryChart.tooltipNotifier,
-                            builder: (context, tooltipText, _) {
-                              return Text(
-                                tooltipText ?? '',
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
-                                ),
-                              );
-                            },
+            
+            const SizedBox(height: 24),
+            
+            // 每周阅读统计图表
+            Card(
+              margin: const EdgeInsets.symmetric(horizontal: 20),
+              elevation: 4,
+              color: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 标题 + 提示信息 + 切换按钮
+                    Row(
+                      children: [
+                        // 标题
+                        Text(
+                          _isWeeklyView ? 'Weekly Reading' : 'Monthly Reading',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[800],
                           ),
                         ),
-                      ),
-                      
-                      // 切换滑块按钮
-                      Container(
-                        width: 120,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(18),
+                        
+                        // 提示信息（居中）
+                        Expanded(
+                          child: Center(
+                            child: ValueListenableBuilder<String?>(
+                              valueListenable: ReadingHistoryChart.tooltipNotifier,
+                              builder: (context, tooltipText, _) {
+                                return Text(
+                                  tooltipText ?? '',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black87,
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
                         ),
-                        child: Stack(
-                          children: [
-                            // 滑动指示器
-                            AnimatedPositioned(
-                              duration: const Duration(milliseconds: 200),
-                              curve: Curves.easeInOut,
-                              left: _isWeeklyView ? 0 : 60,
-                              top: 0,
-                              child: Container(
-                                width: 60,
-                                height: 36,
-                                decoration: BoxDecoration(
-                                  color: Colors.black,
-                                  borderRadius: BorderRadius.circular(18),
+                        
+                        // 切换滑块按钮
+                        Container(
+                          width: 120,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[300],
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: Stack(
+                            children: [
+                              // 滑动指示器
+                              AnimatedPositioned(
+                                duration: const Duration(milliseconds: 200),
+                                curve: Curves.easeInOut,
+                                left: _isWeeklyView ? 0 : 60,
+                                top: 0,
+                                child: Container(
+                                  width: 60,
+                                  height: 36,
+                                  decoration: BoxDecoration(
+                                    color: Colors.black,
+                                    borderRadius: BorderRadius.circular(18),
+                                  ),
                                 ),
                               ),
-                            ),
-                            // 选项
-                            Row(
-                              children: [
-                                // 周选项
-                                Expanded(
-                                  child: GestureDetector(
-                                    onTap: () {
-                                      if (!_isWeeklyView) _toggleView();
-                                    },
-                                    child: Center(
-                                      child: Text(
-                                        '周',
-                                        style: TextStyle(
-                                          color: _isWeeklyView ? Colors.white : Colors.black,
-                                          fontWeight: FontWeight.bold,
+                              // 选项
+                              Row(
+                                children: [
+                                  // 周选项
+                                  Expanded(
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        if (!_isWeeklyView) _toggleView();
+                                      },
+                                      child: Center(
+                                        child: Text(
+                                          'week',
+                                          style: TextStyle(
+                                            color: _isWeeklyView ? Colors.white : Colors.black,
+                                            fontWeight: FontWeight.bold,
+                                          ),
                                         ),
                                       ),
                                     ),
                                   ),
-                                ),
-                                // 月选项
-                                Expanded(
-                                  child: GestureDetector(
-                                    onTap: () {
-                                      if (_isWeeklyView) _toggleView();
-                                    },
-                                    child: Center(
-                                      child: Text(
-                                        '月',
-                                        style: TextStyle(
-                                          color: _isWeeklyView ? Colors.black : Colors.white,
-                                          fontWeight: FontWeight.bold,
+                                  // 月选项
+                                  Expanded(
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        if (_isWeeklyView) _toggleView();
+                                      },
+                                      child: Center(
+                                        child: Text(
+                                          'month',
+                                          style: TextStyle(
+                                            color: _isWeeklyView ? Colors.black : Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                          ),
                                         ),
                                       ),
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ],
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    // 图表区域
+                    Align(
+                      alignment: _isWeeklyView ? Alignment.topCenter : Alignment.bottomCenter,
+                      child: SizedBox(
+                        height: 170,
+                        child: ReadingHistoryChart(
+                          weeklyProgress: _isWeeklyView ? _weeklyData : _monthlyData,
+                          showAllBars: !_isWeeklyView,
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
 
-                  const SizedBox(height: 10),
-
-                  // 图表区域
-                  Align(
-                    alignment: _isWeeklyView ? Alignment.topCenter : Alignment.bottomCenter,
-                    child: SizedBox(
-                      height: 170,
-                      child: ReadingHistoryChart(
-                        weeklyProgress: _isWeeklyView ? _weeklyData : _monthlyData,
-                        showAllBars: !_isWeeklyView,
+            const SizedBox(height: 24),
+            
+            // 书籍统计卡片
+            Card(
+              margin: const EdgeInsets.symmetric(horizontal: 20),
+              elevation: 4,
+              color: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Book Statistics',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[800],
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 24),
-          
-          // 书籍统计卡片
-          Card(
-            margin: const EdgeInsets.symmetric(horizontal: 20),
-            elevation: 4,
-            color: const Color(0xFFF5F8F5),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '书籍统计',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey[800],
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _buildBookStat('$_totalBooks', 'Total'),
+                        _buildBookStat('${_getCompletedBooksCount()}', 'Completed'),
+                        _buildBookStat('${_getInProgressBooksCount()}', 'In Progress'),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildBookStat('$_totalBooks', '总书籍'),
-                      _buildBookStat('${_getCompletedBooksCount()}', '已完成'),
-                      _buildBookStat('${_getInProgressBooksCount()}', '进行中'),
-                    ],
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
-          
-          const SizedBox(height: 20),
-        ],
+            
+            const SizedBox(height: 20),
+          ],
+        ),
       ),
     );
   }

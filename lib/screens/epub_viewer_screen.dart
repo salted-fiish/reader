@@ -768,7 +768,7 @@ class _EpubViewerScreenState extends State<EpubViewerScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  '书签',
+                  'Bookmarks',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
