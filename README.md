@@ -1,7 +1,7 @@
 # Reader App | 阅读应用
 
 <p align="center">
-  <img src="1.png" alt="Reader App Logo" width="200"/>
+  <img src="image/1.png" alt="Reader App Logo" width="200"/>
 </p>
 
 <div align="center">
@@ -23,7 +23,7 @@ Read all your favorite books in one place with support for multiple formats:
 - **TXT** - Clean and simple text reading experience
 - **MOBI** - Automatic conversion to compatible formats
 <p align="center">
-  <img src="2.png" alt="Reader App Logo" width="200"/>
+  <img src="image/2.png" alt="Reader App Logo" width="200"/>
 </p>
 
 ## 📖 Immerse Yourself in Every Word
@@ -33,7 +33,7 @@ Enjoy a distraction-free reading environment:
 - **Inspirational Quotes** - Start your reading session with literary wisdom
 - **Intuitive Navigation** - Easily move between books and features
 <p align="center">
-  <img src="3.png" alt="Reader App Logo" width="200"/>
+  <img src="image/3.png" alt="Reader App Logo" width="200"/>
 </p>
 
 ## 🧠 Deeper Reading Driven by AI
@@ -42,7 +42,7 @@ Unlock deeper understanding of your books:
 - **Text Summarization** - Get concise summaries of what you've read
 - **Smart Bookmarks** - AI remembers context around your bookmarks
 <p align="center">
-  <img src="4.png" alt="Reader App Logo" width="200"/>
+  <img src="image/4.png" alt="Reader App Logo" width="200"/>
 </p>
 
 ## 📚 Your Personal Library
@@ -52,7 +52,7 @@ Organize your collection effortlessly:
 - **Reading Progress Tracking** - Resume exactly where you left off
 - **Recently Read** - Quick access to books you're currently enjoying
 <p align="center">
-  <img src="5.png" alt="Reader App Logo" width="200"/>
+  <img src="image/5.png" alt="Reader App Logo" width="200"/>
 </p>
 
 ## 📊 Turn Your Reading Habits into Achievements
@@ -62,7 +62,7 @@ Track your reading habits with beautiful visualizations:
 - **Reading Streaks** - Stay motivated with streak tracking
 - **Word Count** - Monitor how many words you read
 <p align="center">
-  <img src="6.png" alt="Reader App Logo" width="200"/>
+  <img src="image/6.png" alt="Reader App Logo" width="200"/>
 </p>
 
 ## 🎯 Set Your Reading Goals, Make Every Page Count
@@ -71,7 +71,7 @@ Smart features for serious readers:
 - **Reading History** - Visualize your reading patterns over time
 - **AI Token Management** - Monitor your usage of AI features
 <p align="center">
-  <img src="7.png" alt="Reader App Logo" width="200"/>
+  <img src="image/7.png" alt="Reader App Logo" width="200"/>
 </p>
 
 ## 🚀 Getting Started
@@ -99,7 +99,7 @@ Transform your reading experience with Reader App - where traditional reading me
 - **TXT** - 清晰简洁的文本阅读体验
 - **MOBI** - 自动转换为兼容格式
 <p align="center">
-  <img src="2.png" alt="Reader App Logo" width="200"/>
+  <img src="image/2.png" alt="Reader App Logo" width="200"/>
 </p>
 
 ## 📖 沉浸于每一个字
@@ -109,7 +109,7 @@ Transform your reading experience with Reader App - where traditional reading me
 - **励志名言** - 以文学智慧开始您的阅读会话
 - **直观导航** - 在书籍和功能之间轻松切换
 <p align="center">
-  <img src="3.png" alt="Reader App Logo" width="200"/>
+  <img src="image/3.png" alt="Reader App Logo" width="200"/>
 </p>
 
 ## 🧠 AI驱动的深度阅读
@@ -118,7 +118,7 @@ Transform your reading experience with Reader App - where traditional reading me
 - **文本摘要** - 获取您已阅读内容的简明摘要
 - **智能书签** - AI记住书签周围的上下文
 <p align="center">
-  <img src="4.png" alt="Reader App Logo" width="200"/>
+  <img src="image/4.png" alt="Reader App Logo" width="200"/>
 </p>
 
 ## 📚 您的个人图书馆
@@ -128,7 +128,7 @@ Transform your reading experience with Reader App - where traditional reading me
 - **阅读进度跟踪** - 从您上次离开的地方继续阅读
 - **最近阅读** - 快速访问您当前正在阅读的书籍
 <p align="center">
-  <img src="5.png" alt="Reader App Logo" width="200"/>
+  <img src="image/5.png" alt="Reader App Logo" width="200"/>
 </p>
 
 ## 📊 将阅读习惯转化为成就
@@ -138,7 +138,7 @@ Transform your reading experience with Reader App - where traditional reading me
 - **阅读连续性** - 通过连续阅读记录保持动力
 - **字数统计** - 监控您阅读了多少字
 <p align="center">
-  <img src="6.png" alt="Reader App Logo" width="200"/>
+  <img src="image/6.png" alt="Reader App Logo" width="200"/>
 </p>
 
 ## 🎯 设定阅读目标，让每一页都有价值
@@ -147,7 +147,7 @@ Transform your reading experience with Reader App - where traditional reading me
 - **阅读历史** - 可视化您的阅读模式随时间的变化
 - **AI令牌管理** - 监控您对AI功能的使用情况
 <p align="center">
-  <img src="7.png" alt="Reader App Logo" width="200"/>
+  <img src="image/7.png" alt="Reader App Logo" width="200"/>
 </p>
 
 ## 🚀 开始使用
